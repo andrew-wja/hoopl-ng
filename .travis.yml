@@ -1,5 +1,5 @@
 language: c
-sudo: required
+sudo: false
 
 env:
  - CABALVER=1.16 GHCVER=7.0.1
