@@ -1,10 +1,12 @@
-language: c
 sudo: false
 
 addons:
   apt:
     sources:
      - hvr-ghc
+    packages:
+     - ghc-heaed
+     - cabal-install-head
 
 env:
  - CABALVER=1.16 GHCVER=7.0.1
@@ -21,8 +23,8 @@ matrix:
    - env: CABALVER=head GHCVER=head
 
 before_install:
- - apt-get update
- - apt-get install cabal-install-$CABALVER ghc-$GHCVER
+# - apt-get update
+# - apt-get install cabal-install-$CABALVER ghc-$GHCVER
  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
