@@ -5,13 +5,14 @@ addons:
     sources:
      - hvr-ghc
     packages:
-     - ghc-head
-     - ghc-7.10.1
-     - ghc-7.8.4
-     - ghc-7.6.3
-     - ghc-7.4.2
-     - ghc-7.2.2
      - ghc-7.0.4
+     - ghc-7.2.2
+     - ghc-7.4.2
+     - ghc-7.6.3
+     - ghc-7.8.4
+     - ghc-7.10.1
+     - ghc-head
+
      - cabal-install-1.16
      - cabal-install-1.18
      - cabal-install-1.22
