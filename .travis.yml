@@ -5,10 +5,14 @@ addons: {apt: {sources: [hvr-ghc]}}
      
 matrix:
   include:
+    - env: CABALVER=1.16 GHCVER=7.6.3
+      addons: {apt: {packages: [cabal-install-1.16,ghc-7.6.3]}}
+    - env: CABALVER=1.18 GHCVER=7.8.4
+      addons: {apt: {packages: [cabal-install-1.18,ghc-7.8.4]}}
     - env: CABALVER=1.22 GHCVER=7.10.1
-      addons: {apt: {packages: [ghc-7.10.1,cabal-install-1.22]}}
+      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.1]}}
     - env: CABALVER=head GHCVER=head
-      addons: {apt: {packages: [ghc-head,cabal-install-head]}}
+      addons: {apt: {packages: [cabal-install-head,ghc-head]}}
 
   allow_failures:
    - env: CABALVER=head GHCVER=head
