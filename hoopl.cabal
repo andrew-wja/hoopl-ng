@@ -67,9 +67,7 @@ Library
                      Compiler.Hoopl.Wrappers,
                      Compiler.Hoopl.Passes.Dominator,
                      Compiler.Hoopl.Passes.DList
-
-  -- The remaining modules are hidden *provisionally*
-  Other-modules:     Compiler.Hoopl.Checkpoint,
+                     Compiler.Hoopl.Checkpoint,
                      Compiler.Hoopl.Collections,
                      Compiler.Hoopl.Combinators,
                      Compiler.Hoopl.Dataflow,
