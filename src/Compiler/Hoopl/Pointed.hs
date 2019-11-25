@@ -129,16 +129,9 @@ instance Show a => Show (Pointed t b a) where
   show Top = "T"
   show (PElem a) = show a
 
-instance Functor (Pointed t b) where
-  fmap _ Bot = Bot
-  fmap _ Top = Top
-  fmap f (PElem a) = PElem (f a)
+deriving instance Functor (Pointed t b)
 
-instance Eq a => Eq (Pointed t b a) where
-  Bot == Bot = True
-  Top == Top = True
-  (PElem a) == (PElem a') = a == a'
-  _ == _ = False
+deriving instance Eq a => Eq (Pointed t b a)
 
 instance Ord a => Ord (Pointed t b a) where
   Bot     `compare` Bot      = EQ
