@@ -1,94 +1,66 @@
 {-# LANGUAGE CPP, ScopedTypeVariables, RankNTypes, TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 #if __GLASGOW_HASKELL__ >= 701
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 #endif
 
 module Compiler.Hoopl.Passes.Live 
   ( NodeWithVars(..), AssignmentNode(..)
-  , liveLattice, liveness, -- deadAsstElim
+  , liveLattice, liveness, deadAssignmentElim
   ) 
 where
 
-import Data.Maybe
-import qualified Data.Set as S
+import Control.Monad (guard)
+import Data.Monoid (Endo  (..))
+import Data.Functor.Const (Const (..))
 
 import Compiler.Hoopl
 
-class HooplNode n => NodeWithVars n where
-  data Var    n :: * -- ^ Variable or machine register.  Unequal variables don't alias.
-  data VarSet n :: *
-  foldVarsUsed :: forall e x a . (Var n -> a -> a) -> n e x -> a -> a
-  foldVarsDefd :: forall e x a . (Var n -> a -> a) -> n e x -> a -> a
-  killsAllVars :: forall e x . n e x -> Bool
-  emptyVarSet       :: VarSet n
-  unitVarSet        :: Var n -> VarSet n
-  insertVarSet      :: Var n -> VarSet n -> VarSet n
-  mkVarSet          :: [Var n] -> VarSet n
-  unionVarSets      :: VarSet n -> VarSet n -> VarSet n
-  unionManyVarSets  :: [VarSet n] -> VarSet n
-  minusVarSet       :: VarSet n -> VarSet n -> VarSet n
-  memberVarSet      :: Var n -> VarSet n -> Bool
-  varSetElems       :: VarSet n -> [Var n]
-  nullVarSet        :: VarSet n -> Bool
-  varSetSize        :: VarSet n -> Int
-  delFromVarSet     :: Var n -> VarSet n -> VarSet n
-  delListFromVarSet :: [Var n] -> VarSet n -> VarSet n
-  foldVarSet        :: (Var n -> b -> b) -> b -> VarSet n -> b -- ^ like Data.Set
-  filterVarSet      :: (Var n -> Bool) -> VarSet n -> VarSet n
-  intersectVarSets  :: VarSet n -> VarSet n -> VarSet n
+class (IsSet (VarSet n), ElemOf (VarSet n) ~ Var n, HooplNode n) => NodeWithVars n where
+    type Var    n :: *
+    -- ^ Variable or machine register.  Unequal variables don't alias.
+    type VarSet n :: *
+    foldVarsUsed :: ∀ e x a . (Var n -> a -> a) -> n e x -> a -> a
+    foldVarsDefd :: ∀ e x a . (Var n -> a -> a) -> n e x -> a -> a
+    varsUsed :: ∀ e x . n e x -> VarSet n
+    varsDefd :: ∀ e x . n e x -> VarSet n
+    killsAllVars :: ∀ e x . n e x -> Bool
 
-{-
-  unitVarSet x     = insertVarSet x emptyVarSet
-  mkVarSet         = foldr insertVarSet emptyVarSet
-  unionManyVarSets = foldr unionVarSets emptyVarSet
-  delListFromVarSet= flip (foldr delFromVarSet)
--}
+    varsUsed = flip (foldVarsUsed setInsert) setEmpty
+    varsDefd = flip (foldVarsDefd setInsert) setEmpty
+    foldVarsUsed f = flip (setFold f) . varsUsed
+    foldVarsDefd f = flip (setFold f) . varsDefd
 
 class NodeWithVars n => AssignmentNode n where
-  isVarAssign :: n O O -> Maybe (VarSet n) -- ^ Returns 'Just xs' if /all/ the node
-                                           -- does is assign to the given variables
+    isVarAssign :: n O O -> Maybe (VarSet n) 
 
 type Live n = WithTop (VarSet n)
 
-liveLattice :: forall n . NodeWithVars n => DataflowLattice (Live n)
-liveLattice = addTop lat
-  where lat :: DataflowLattice (VarSet n)
-        lat = DataflowLattice
-                { fact_name       = "Live variables"
-                , fact_bot        = empty
-                , fact_extend     = add
-                , fact_do_logging = False
-                }
-        empty :: VarSet n
-        empty = (emptyVarSet :: VarSet n)
-        add :: JoinFun (VarSet n)
-        add _ (OldFact old) (NewFact new) = (change, j)
-          where j = new `unionVarSets` old
-                change = error "type troubles"
-                -- change = changeIf $ varSetSize j > varSetSize old
+liveLattice :: NodeWithVars n => Const (DataflowLattice (Live n)) n
+liveLattice = Const $ addTop $ DataflowLattice
+  { fact_name       = "Live variables"
+  , fact_bot        = setEmpty
+  , fact_join       = \ _ (OldFact old) (NewFact new) ->
+        let x = setUnion new old in (changeIf (setSize x > setSize old), x)
+  }
 
 liveness :: NodeWithVars n => BwdTransfer n (VarSet n)
-liveness = mkBTransfer first mid last
-  where first f = gen_kill f
-        mid   m = gen_kill m
-        last  l = gen_kill l . unionManyVarSets . successorFacts l
+liveness = mkBTransfer3 gen_kill gen_kill (\ l -> gen_kill l . setUnions . successorFacts l)
 
 gen_kill :: NodeWithVars n => n e x -> VarSet n -> VarSet n
-gen_kill n = gen n . kill n . if killsAllVars n then const emptyVarSet else id
+gen_kill = appEndo . mconcat [gen, kill, mconcat . (Endo (pure setEmpty) <$) . guard . killsAllVars]
 
 
 -- | The transfer equations use the traditional 'gen' and 'kill'
 -- notations, which should be familiar from the dragon book.
-gen, kill :: NodeWithVars n => n e x -> VarSet n -> VarSet n
-gen  = foldVarsUsed insertVarSet
-kill = foldVarsDefd delFromVarSet
-     
-{-
-deadAsstElim :: AssignmentNode n => BwdRewrite n (VarSet n)
-deadAsstElim = shallowBwdRw (noRewriteMono, dead, noRewriteMono)
-  where dead n live
-             | Just xs <- isVarAssign n =
-                 if nullVarSet (xs `intersectVarSets` live) then Nothing
-                 else Just emptyGraph
-             | otherwise = Nothing
--}
+gen, kill :: NodeWithVars n => n e x -> Endo (VarSet n)
+gen  = Endo . foldVarsUsed setInsert
+kill = Endo . foldVarsDefd setDelete
+
+deadAssignmentElim :: ∀ m n . (FuelMonad m, AssignmentNode n) => BwdRewrite m n (VarSet n)
+deadAssignmentElim = mkBRewrite3 goCO goOO goOC where
+    goCO _ _ = pure Nothing
+    goOC _ _ = pure Nothing
+
+    goOO :: n O O -> VarSet n -> m (Maybe (Graph n O O))
+    goOO n live = pure [emptyGraph | xs <- isVarAssign n, setNull (setIntersection xs live)]

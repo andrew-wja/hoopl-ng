@@ -76,7 +76,8 @@ Library
                      Compiler.Hoopl.Internals,
                      Compiler.Hoopl.Wrappers,
                      Compiler.Hoopl.Passes.Dominator,
-                     Compiler.Hoopl.Passes.DList
+                     Compiler.Hoopl.Passes.DList,
+                     Compiler.Hoopl.Passes.Live,
                      Compiler.Hoopl.Checkpoint,
                      Compiler.Hoopl.Collections,
                      Compiler.Hoopl.Combinators,
