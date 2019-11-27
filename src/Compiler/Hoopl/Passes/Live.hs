@@ -34,10 +34,10 @@ class (IsSet (VarSet n), ElemOf (VarSet n) ~ Var n, HooplNode n) => NodeWithVars
 class NodeWithVars n => AssignmentNode n where
     isVarAssign :: n O O -> Maybe (VarSet n) 
 
-type Live n = WithTop (VarSet n)
+type Live n = VarSet n
 
 liveLattice :: NodeWithVars n => Const (DataflowLattice (Live n)) n
-liveLattice = Const $ addTop $ DataflowLattice
+liveLattice = Const $ DataflowLattice
   { fact_name       = "Live variables"
   , fact_bot        = setEmpty
   , fact_join       = \ _ (OldFact old) (NewFact new) ->
