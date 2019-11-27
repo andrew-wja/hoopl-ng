@@ -18,9 +18,11 @@ module Compiler.Hoopl.XUtil
   , joinMaps
   , analyzeAndRewriteFwdBody, analyzeAndRewriteBwdBody
   , analyzeAndRewriteFwdOx, analyzeAndRewriteBwdOx
+  , gatherFacts
   )
 where
 
+import Control.Monad.Trans.Writer
 import qualified Data.Map as M
 import Data.Maybe
 
@@ -167,5 +169,12 @@ joinMaps eltJoin l (OldFact old) (NewFact new) = M.foldrWithKey add (NoChange, o
                         (SomeChange, v') -> (SomeChange, M.insert k v' joinmap)
                         (NoChange,   _)  -> (ch, joinmap)
 
-
-
+gatherFacts :: (NonLocal n, Monad m, Monoid a) => DataflowLattice f -> BwdTransfer n f -> (f -> a) -> BwdPass (WriterT a m) n f
+gatherFacts lattice transfer f = BwdPass
+  { bp_lattice = lattice
+  , bp_transfer = transfer
+  , bp_rewrite = BwdRewrite3
+        (\ _ _ -> pure Nothing,
+         \ _ fact -> Nothing <$ tell (f fact),
+         \ node fact -> Nothing <$ tell (foldMap f $ successorFacts node fact))
+  }
