@@ -8,6 +8,8 @@ module Compiler.Hoopl.Checkpoint
   )
 where
 
+import Data.Functor.Identity (Identity (..))
+
 -- | Obeys the following law:
 -- for all @m@ 
 -- @
@@ -18,3 +20,7 @@ class Monad m => CheckpointMonad m where
   checkpoint :: m (Checkpoint m)
   restart    :: Checkpoint m -> m () 
 
+instance CheckpointMonad Identity where
+    type Checkpoint Identity = ()
+    checkpoint = pure ()
+    restart () = pure ()
