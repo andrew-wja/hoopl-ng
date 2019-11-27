@@ -27,8 +27,8 @@ module Compiler.Hoopl.Graph
   , splice, gSplice
 
   -- ** Maps
-  , mapGraph, mapGraphBlocks
-  , traverseGraph, traverseGraphBlocks
+  , mapGraph, mapGraph3, mapGraphBlocks
+  , traverseGraph, traverseGraph3, traverseGraphBlocks
 
   -- ** Folds
   , foldGraphNodes
@@ -210,6 +210,12 @@ gSplice = splice blockAppend
 mapGraph :: (forall e x. n e x -> n' e x) -> Graph n e x -> Graph n' e x
 mapGraph f = runIdentity . traverseGraph (Identity . f)
 
+-- | Maps over all nodes in a graph.
+mapGraph3 :: (n C O -> n' C O,
+              n O O -> n' O O,
+              n O C -> n' O C) -> Graph n e x -> Graph n' e x
+mapGraph3 (fCO, fOO, fOC) = runIdentity . traverseGraph3 (Identity . fCO, Identity . fOO, Identity . fOC)
+
 -- | Function 'mapGraphBlocks' enables a change of representation of blocks,
 -- nodes, or both.  It lifts a polymorphic block transform into a polymorphic
 -- graph transform.  When the block representation stabilizes, a similar
@@ -221,6 +227,11 @@ mapGraphBlocks f = runIdentity . traverseGraphBlocks (Identity . f)
 
 traverseGraph :: Applicative p => (∀ e x . n e x -> p (n' e x)) -> Graph n e x -> p (Graph n' e x)
 traverseGraph f = traverseGraphBlocks (traverseBlock f)
+
+traverseGraph3 :: Applicative p => (n C O -> p (n' C O),
+                                    n O O -> p (n' O O),
+                                    n O C -> p (n' O C)) -> Graph n e x -> p (Graph n' e x)
+traverseGraph3 f = traverseGraphBlocks (traverseBlock3 f)
 
 traverseGraphBlocks :: ∀ block n block' n' e x p .
     Applicative p
