@@ -78,7 +78,6 @@ Library
                      Compiler.Hoopl.Passes.Dominator,
                      Compiler.Hoopl.Passes.DList,
                      Compiler.Hoopl.Passes.Live,
-                     Compiler.Hoopl.Checkpoint,
                      Compiler.Hoopl.Collections,
                      Compiler.Hoopl.Combinators,
                      Compiler.Hoopl.Dataflow,
