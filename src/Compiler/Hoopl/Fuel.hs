@@ -21,7 +21,6 @@ where
 
 import Compiler.Hoopl.Unique
 
-import Control.Applicative as AP (Applicative(..))
 import Control.Monad (join)
 import Control.Monad.Trans.State
 
