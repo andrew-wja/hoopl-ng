@@ -60,9 +60,9 @@ data O
 data C
 
 -- | Either type indexed by closed/open using type families
-type family IndexedCO ex a b :: *
-type instance IndexedCO C a _b = a
-type instance IndexedCO O _a b = b
+type family IndexedCO ex a b where
+    IndexedCO C a _b = a
+    IndexedCO O _a b = b
 
 -- | Maybe type indexed by open/closed
 data MaybeO ex t where

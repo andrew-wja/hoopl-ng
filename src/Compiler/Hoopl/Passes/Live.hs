@@ -13,13 +13,14 @@ where
 import Control.Monad (guard)
 import Data.Monoid (Endo  (..))
 import Data.Functor.Const (Const (..))
+import Data.Kind (Type)
 
 import Compiler.Hoopl
 
 class (IsSet (VarSet n), ElemOf (VarSet n) ~ Var n, HooplNode n) => NodeWithVars n where
-    type Var    n :: *
+    type Var    n :: Type
     -- ^ Variable or machine register.  Unequal variables don't alias.
-    type VarSet n :: *
+    type VarSet n :: Type
     foldVarsUsed :: ∀ e x a . (Var n -> a -> a) -> n e x -> a -> a
     foldVarsDefd :: ∀ e x a . (Var n -> a -> a) -> n e x -> a -> a
     varsUsed :: ∀ e x . n e x -> VarSet n

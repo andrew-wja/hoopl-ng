@@ -168,9 +168,9 @@ mkFRewrite :: FuelMonad m => (forall e x . n e x -> f -> m (Maybe (Graph n e x))
 mkFRewrite f = mkFRewrite3 f f f
 
 
-type family   Fact x f :: *
-type instance Fact C f = FactBase f
-type instance Fact O f = f
+type family   Fact x f where
+    Fact C f = FactBase f
+    Fact O f = f
 
 -- | if the graph being analyzed is open at the entry, there must
 --   be no other entry point, or all goes horribly wrong...
