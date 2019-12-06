@@ -24,9 +24,9 @@ where
 
 import Control.Monad.Trans.Writer
 import qualified Data.Map as M
+import Data.Map.Class
 import Data.Maybe
 
-import Compiler.Hoopl.Collections
 import Compiler.Hoopl.Dataflow
 import Compiler.Hoopl.Block
 import Compiler.Hoopl.Graph
@@ -126,14 +126,14 @@ distributeXfer lattice xfer n f =
 -- for a last node takes the incoming fact unchanged and simply distributes
 -- that fact over the outgoing edges.
 distributeFact :: NonLocal n => n O C -> f -> FactBase f
-distributeFact n f = mapFromList [ (l, f) | l <- successors n ]
+distributeFact n f = fromList [ (l, f) | l <- successors n ]
    -- because the same fact goes out on every edge,
    -- there's no need for 'mkFactBase' here.
 
 -- | This utility function handles a common case in which a backward transfer
 -- function takes the incoming fact unchanged and tags it with the node's label.
 distributeFactBwd :: NonLocal n => n C O -> f -> FactBase f
-distributeFactBwd n f = mapSingleton (entryLabel n) f
+distributeFactBwd = singleton . entryLabel
 
 -- | List of (unlabelled) facts from the successors of a last node
 successorFacts :: NonLocal n => n O C -> FactBase f -> [f]

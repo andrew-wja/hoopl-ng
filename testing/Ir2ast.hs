@@ -41,9 +41,10 @@ fromGraph entry g = let entryNode = gUnitOC (BlockOC BNil (I.Branch entry))
                                            }) [] blks
 
 
-
+{-
 type instance IndexedCO C () (Rm (A.Lbl, [A.Insn])) = ()
 type instance IndexedCO C (Rm A.Block) (Rm (A.Lbl, [A.Insn])) = Rm A.Block
+-}
 
 fromBlock :: Block I.Insn C C -> () -> Rm A.Block
 fromBlock blk = foldBlockNodesF3 (fromIrInstCO, fromIrInstOO, fromIrInstOC) blk

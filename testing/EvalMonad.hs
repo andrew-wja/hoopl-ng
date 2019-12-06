@@ -9,6 +9,7 @@ module EvalMonad (ErrorM, VarEnv, B, State,
 import Control.Applicative as AP (Applicative(..))
 import Control.Monad.Except
 import qualified Data.Map as M
+import Data.Map.Class
 import Prelude hiding (succ)
 
 import Compiler.Hoopl hiding ((<*>))
@@ -138,6 +139,6 @@ mlookup blame k m =
 
 blookup :: String -> G -> Label -> EvalM v B
 blookup blame (GMany _ blks _) lbl =
-  case mapLookup lbl blks of
+  case blks !? lbl of
     Just b  -> return b
     Nothing -> throwError ("unknown lookup for " ++ blame)

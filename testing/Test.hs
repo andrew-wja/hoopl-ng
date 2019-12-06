@@ -4,6 +4,7 @@ module Test (parseTest, evalTest, optTest) where
 
 import Compiler.Hoopl
 import Control.Monad.Except
+import Data.Map.Class
 import System.Exit
 
 import qualified Ast as A
@@ -52,8 +53,8 @@ optTest' procs =
   where
     optProc proc@(Proc {entry, body, args}) =
       do { (body',  _, _) <- analyzeAndRewriteFwd fwd (JustC [entry]) body
-                             (mapSingleton entry (initFact args))
-         ; (body'', _, _) <- analyzeAndRewriteBwd bwd (JustC [entry]) body' mapEmpty
+                             (singleton entry (initFact args))
+         ; (body'', _, _) <- analyzeAndRewriteBwd bwd (JustC [entry]) body' empty
          ; return $ proc { body = body'' } }
     -- With debugging info:
     -- fwd  = debugFwdJoins trace (const True) $ FwdPass { fp_lattice = constLattice, fp_transfer = varHasLit

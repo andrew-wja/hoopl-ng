@@ -68,8 +68,10 @@ Library
     Other-Extensions: Safe Trustworthy
 
   Hs-Source-Dirs:    src
-  Build-Depends:     base >= 4.3 && < 5
+  Build-Depends:     Map >= 0.1.3.2 && < 0.2
+                   , base >= 4.3 && < 5
                    , containers >= 0.5 && < 0.7
+                   , filtrable >= 0.1.2.0 && < 0.2
                    , strict-identity >= 0.1 && < 0.2
                    , transformers >= 0.4 && < 0.7
   Exposed-Modules:   Compiler.Hoopl,
@@ -113,7 +115,8 @@ Test-Suite hoopl-test
                      Simplify
                      Test
   Hs-Source-Dirs:    testing
-  Build-Depends:     base >= 4.3 && < 5,
+  Build-Depends:     Map >= 0.1.3.2 && < 0.2,
+                     base >= 4.3 && < 5,
                      containers >= 0.5 && < 0.7,
                      filepath,
                      hoopl,

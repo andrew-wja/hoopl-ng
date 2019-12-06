@@ -14,9 +14,9 @@ module Compiler.Hoopl.Combinators
 where
 
 import Control.Monad
+import Data.Map.Class
 import Data.Maybe
 
-import Compiler.Hoopl.Collections
 import Compiler.Hoopl.Dataflow
 import Compiler.Hoopl.Fuel
 import Compiler.Hoopl.Block
@@ -149,7 +149,7 @@ pairFwd pass1 pass2 = FwdPass lattice transfer rewrite
         tf :: forall t t1 t2 t3 t4.
               (t4 -> t -> t2) -> (t4 -> t1 -> t3) -> t4 -> (t, t1) -> (t2, t3)
         tf  t1 t2 n (f1, f2) = (t1 n f1, t2 n f2)
-        tfb t1 t2 n (f1, f2) = mapMapWithKey withfb2 fb1
+        tfb t1 t2 n (f1, f2) = mapWithKey withfb2 fb1
           where fb1 = t1 n f1
                 fb2 = t2 n f2
                 withfb2 :: forall t. Label -> t -> (t, f')
@@ -183,13 +183,13 @@ pairBwd pass1 pass2 = BwdPass lattice transfer rewrite
       where
         tf :: (t4 -> t -> t2) -> (t4 -> t1 -> t3) -> t4 -> (t, t1) -> (t2, t3)
         tf  t1 t2 n (f1, f2) = (t1 n f1, t2 n f2)
-        tfb :: IsMap map =>
+        tfb :: Map map =>
                (t2 -> map a -> t)
                -> (t2 -> map b -> t1)
                -> t2
                -> map (a, b)
                -> (t, t1)
-        tfb t1 t2 n fb = (t1 n $ mapMap fst fb, t2 n $ mapMap snd fb)
+        tfb t1 t2 n fb = (t1 n $ fmap fst fb, t2 n $ fmap snd fb)
         (tf1, tm1, tl1) = getBTransfer3 (bp_transfer pass1)
         (tf2, tm2, tl2) = getBTransfer3 (bp_transfer pass2)
     rewrite = lift fst (bp_rewrite pass1) `thenBwdRw` lift snd (bp_rewrite pass2) 
@@ -203,9 +203,9 @@ pairBwd pass1 pass2 = BwdPass lattice transfer rewrite
                -> (n e x ->
                        Fact x (f,f') -> m (Maybe (Graph n e x, BwdRewrite m n (f,f'))))
               project Open = 
-                 \rw n pair -> liftM (liftM repair) $ rw n (       proj pair)
+                 \rw n pair -> liftM (liftM repair) $ rw n (     proj pair)
               project Closed = 
-                 \rw n pair -> liftM (liftM repair) $ rw n (mapMap proj pair)
+                 \rw n pair -> liftM (liftM repair) $ rw n (fmap proj pair)
               repair :: forall t.
                         (t, BwdRewrite m n f1) -> (t, BwdRewrite m n (f, f'))
               repair (g, rw') = (g, lift proj rw')

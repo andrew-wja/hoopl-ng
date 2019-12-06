@@ -4,6 +4,7 @@ module ConstProp (ConstFact, constLattice, initFact, varHasLit, constProp) where
 
 import Control.Monad
 import qualified Data.Map as Map
+import Data.Map.Class
 
 import Compiler.Hoopl
 import IR
@@ -21,7 +22,7 @@ type ConstFact = Map.Map Var (WithTop Lit)
 constLattice :: DataflowLattice ConstFact
 constLattice = DataflowLattice
  { fact_name = "Const var value"
- , fact_bot  = Map.empty
+ , fact_bot  = empty
  , fact_join = joinMaps (extendJoinDomain constFactAdd) }
  where
    constFactAdd _ (OldFact old) (NewFact new)
@@ -31,7 +32,7 @@ constLattice = DataflowLattice
 -- @ end cprop.tex
 -- Initially, we assume that all variable values are unknown.
 initFact :: [Var] -> ConstFact
-initFact vars = Map.fromList $ [(v, Top) | v <- vars]
+initFact vars = fromList $ [(v, Top) | v <- vars]
 
 -- Only interesting semantic choice: values of variables are live across
 -- a call site.
@@ -45,21 +46,21 @@ varHasLit = mkFTransfer ft
  where
   ft :: Node e x -> ConstFact -> Fact x ConstFact
   ft (Label _)            f = f
-  ft (Assign x (Lit k))   f = Map.insert x (PElem k) f
-  ft (Assign x _)         f = Map.insert x Top f
+  ft (Assign x (Lit k))   f = insert x (PElem k) f
+  ft (Assign x _)         f = insert x Top f
   ft (Store _ _)          f = f
-  ft (Branch l)           f = mapSingleton l f
+  ft (Branch l)           f = singleton l f
   ft (Cond (Var x) tl fl) f
       = mkFactBase constLattice
-           [(tl, Map.insert x (PElem (Bool True))  f),
-            (fl, Map.insert x (PElem (Bool False)) f)]
+           [(tl, insert x (PElem (Bool True))  f),
+            (fl, insert x (PElem (Bool False)) f)]
   ft (Cond _ tl fl) f
       = mkFactBase constLattice [(tl, f), (fl, f)]
 
 -- @ end cprop.tex
-  ft (Call vs _ _ bid)      f = mapSingleton bid (foldl toTop f vs)
-      where toTop f v = Map.insert v Top f
-  ft (Return _)             _ = mapEmpty
+  ft (Call vs _ _ bid)      f = singleton bid (foldl toTop f vs)
+      where toTop f v = insert v Top f
+  ft (Return _)             _ = empty
 
 type MaybeChange a = a -> Maybe a
 -- @ start cprop.tex
@@ -76,7 +77,7 @@ constProp = mkFRewrite cp
    mapVN      = mapEN . mapEE . mapVE
 
    lookup :: ConstFact -> Var -> Maybe Expr
-   lookup f x = case Map.lookup x f of
+   lookup f x = case f !? x of
                   Just (PElem v) -> Just $ Lit v
                   _              -> Nothing
 -- @ end cprop.tex

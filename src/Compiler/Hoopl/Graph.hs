@@ -50,6 +50,7 @@ import Compiler.Hoopl.Label
 import Control.Applicative as AP (Applicative(..))
 import Control.Monad.Trans.State (State, runState, state)
 import Data.Functor.Identity (Identity (..))
+import Data.Map.Class
 
 -- -----------------------------------------------------------------------------
 -- Body
@@ -61,21 +62,21 @@ type Body n = LabelMap (Block n C C)
 type Body' block n = LabelMap (block n C C)
 
 emptyBody :: Body' block n
-emptyBody = mapEmpty
+emptyBody = empty
 
 bodyUnion :: forall a . LabelMap a -> LabelMap a -> LabelMap a
-bodyUnion = mapUnionWithKey nodups
+bodyUnion = unionWith nodups
   where nodups l _ _ = error $ "duplicate blocks with label " ++ show l
 
 bodyList :: Body' block n -> [(Label,block n C C)]
-bodyList body = mapToList body
+bodyList = foldrWithKey (curry (:)) []
 
 addBlock :: NonLocal thing
          => thing C C -> LabelMap (thing C C)
          -> LabelMap (thing C C)
 addBlock b body
-  | mapMember lbl body = error $ "duplicate label " ++ show lbl ++ " in graph"
-  | otherwise          = mapInsert lbl b body
+  | Just _ <- body !? lbl = error $ "duplicate label " ++ show lbl ++ " in graph"
+  | otherwise             = insert lbl b body
   where lbl = entryLabel b
 
 
@@ -260,9 +261,7 @@ foldGraphNodes f = graph
 
           graph GNil              = id
           graph (GUnit b)         = block b
-          graph (GMany e b x)     = lift block e . body b . lift block x
-          body :: Body n -> a -> a
-          body bdy                = \a -> mapFold block a bdy
+          graph (GMany e b x)     = lift block e . flip (foldr block) b . lift block x
           lift _ NothingO         = id
           lift f (JustO thing)    = f thing
 
@@ -405,7 +404,7 @@ labelsDefined :: forall block n e x . NonLocal (block n) => Graph' block n e x
               -> LabelSet
 labelsDefined GNil      = setEmpty
 labelsDefined (GUnit{}) = setEmpty
-labelsDefined (GMany _ body x) = mapFoldWithKey addEntry (exitLabel x) body
+labelsDefined (GMany _ body x) = foldrWithKey addEntry (exitLabel x) body
   where addEntry :: forall a. ElemOf LabelSet -> a -> LabelSet -> LabelSet
         addEntry label _ labels = setInsert label labels
         exitLabel :: MaybeO x (block n C O) -> LabelSet
@@ -416,7 +415,7 @@ labelsUsed :: forall block n e x. NonLocal (block n) => Graph' block n e x
            -> LabelSet
 labelsUsed GNil      = setEmpty
 labelsUsed (GUnit{}) = setEmpty
-labelsUsed (GMany e body _) = mapFold addTargets (entryTargets e) body 
+labelsUsed (GMany e body _) = foldr addTargets (entryTargets e) body
   where addTargets :: forall e. block n e C -> LabelSet -> LabelSet
         addTargets block labels = setInsertList (successors block) labels
         entryTargets :: MaybeO e (block n O C) -> LabelSet

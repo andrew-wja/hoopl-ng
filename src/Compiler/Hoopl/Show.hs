@@ -8,7 +8,9 @@ module Compiler.Hoopl.Show
   )
 where
 
-import Compiler.Hoopl.Collections
+import Data.Foldable (toList)
+import Data.Map.Class
+
 import Compiler.Hoopl.Block
 import Compiler.Hoopl.Graph
 import Compiler.Hoopl.Label
@@ -27,7 +29,7 @@ showGraph node = g
         g (GUnit block) = b block
         g (GMany g_entry g_blocks g_exit) =
             open b g_entry ++ body g_blocks ++ open b g_exit
-        body blocks = concatMap b (mapElems blocks)
+        body blocks = concatMap b (toList blocks)
         b :: forall e x . Block n e x -> String
         b (BlockCO l b1)   = node l ++ "\n" ++ b b1
         b (BlockCC l b1 n) = node l ++ "\n" ++ b b1 ++ node n ++ "\n"
@@ -43,4 +45,4 @@ open _ NothingO  = ""
 open p (JustO n) = p n
 
 showFactBase :: Show f => FactBase f -> String
-showFactBase = show . mapToList
+showFactBase = show . foldrWithKey (curry (:)) []

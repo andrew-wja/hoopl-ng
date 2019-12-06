@@ -22,6 +22,8 @@ import Compiler.Hoopl.Unique
 import Data.Traversable (Traversable)
 import Data.Foldable (Foldable)
 #endif
+import Data.Filtrable
+import Data.Map.Class
 
 -----------------------------------------------------------------------------
 --		Label
@@ -69,41 +71,22 @@ instance IsSet LabelSet where
 -----------------------------------------------------------------------------
 -- LabelMap
 
-newtype LabelMap v = LM (UniqueMap v)
+newtype LabelMap v = LM { unLM :: UniqueMap v }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-instance IsMap LabelMap where
-  type KeyOf LabelMap = Label
+instance Filtrable LabelMap where
+  mapMaybe f = LM . mapMaybe f . unLM
 
-  mapNull (LM m) = mapNull m
-  mapSize (LM m) = mapSize m
-  mapMember (Label k) (LM m) = mapMember k m
-  mapLookup (Label k) (LM m) = mapLookup k m
-  mapFindWithDefault def (Label k) (LM m) = mapFindWithDefault def k m
+instance StaticMap LabelMap where
+  type Key LabelMap = Label
+  traverseWithKey f = fmap LM . traverseWithKey (f . Label) . unLM
+  adjustA f (Label k) = fmap LM . adjustA f k . unLM
 
-  mapEmpty = LM mapEmpty
-  mapSingleton (Label k) v = LM (mapSingleton k v)
-  mapInsert (Label k) v (LM m) = LM (mapInsert k v m)
-  mapInsertWith f (Label k) v (LM m) = LM (mapInsertWith f k v m)
-  mapDelete (Label k) (LM m) = LM (mapDelete k m)
-
-  mapUnion (LM x) (LM y) = LM (mapUnion x y)
-  mapUnionWithKey f (LM x) (LM y) = LM (mapUnionWithKey (f . uniqueToLbl) x y)
-  mapDifference (LM x) (LM y) = LM (mapDifference x y)
-  mapIntersection (LM x) (LM y) = LM (mapIntersection x y)
-  mapIsSubmapOf (LM x) (LM y) = mapIsSubmapOf x y
-
-  mapMap f (LM m) = LM (mapMap f m)
-  mapMapWithKey f (LM m) = LM (mapMapWithKey (f . uniqueToLbl) m)
-  mapFold k z (LM m) = mapFold k z m
-  mapFoldWithKey k z (LM m) = mapFoldWithKey (k . uniqueToLbl) z m
-  mapFilter f (LM m) = LM (mapFilter f m)
-
-  mapElems (LM m) = mapElems m
-  mapKeys (LM m) = map uniqueToLbl (mapKeys m)
-  mapToList (LM m) = [(uniqueToLbl k, v) | (k, v) <- mapToList m]
-  mapFromList assocs = LM (mapFromList [(lblToUnique k, v) | (k, v) <- assocs])
-  mapFromListWith f assocs = LM (mapFromListWith f [(lblToUnique k, v) | (k, v) <- assocs])
+instance Map LabelMap where
+  empty = LM empty
+  alterF f (Label k) = fmap LM . alterF f k . unLM
+  mergeA f = (fmap . fmap) LM . \ (LM a) (LM b) -> mergeA (f . Label) a b
+  mapMaybeWithKeyA f = fmap LM . mapMaybeWithKeyA (f . Label) . unLM
 
 -----------------------------------------------------------------------------
 -- FactBase
@@ -111,7 +94,7 @@ instance IsMap LabelMap where
 type FactBase f = LabelMap f
 
 noFacts :: FactBase f
-noFacts = mapEmpty
+noFacts = empty
 
 lookupFact :: Label -> FactBase f -> Maybe f
-lookupFact = mapLookup
+lookupFact = flip (!?)

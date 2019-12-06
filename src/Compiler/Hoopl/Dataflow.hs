@@ -35,13 +35,14 @@ module Compiler.Hoopl.Dataflow
 where
 
 import Compiler.Hoopl.Block
-import Compiler.Hoopl.Collections
 import Compiler.Hoopl.Fuel
 import Compiler.Hoopl.Graph hiding (Graph) -- hiding so we can redefine
                                            -- and include definition in paper
 import Compiler.Hoopl.Label
 
 import Control.Monad
+import Data.Foldable (toList)
+import Data.Map.Class
 import Data.Maybe
 
 -----------------------------------------------------------------------------
@@ -74,10 +75,10 @@ changeIf changed = if changed then SomeChange else NoChange
 -- are joined.
 
 mkFactBase :: forall f. DataflowLattice f -> [(Label, f)] -> FactBase f
-mkFactBase lattice = foldl add mapEmpty
+mkFactBase lattice = foldl add empty
   where add :: FactBase f -> (Label, f) -> FactBase f
-        add map (lbl, f) = mapInsert lbl newFact map
-          where newFact = case mapLookup lbl map of
+        add map (lbl, f) = insert lbl newFact map
+          where newFact = case map !? lbl of
                             Nothing -> f
                             Just f' -> snd $ join lbl (OldFact f') (NewFact f)
                 join = fact_join lattice
@@ -287,7 +288,7 @@ arfGraph pass@FwdPass { fp_lattice = lattice,
 -- functions might, for example, generate some debugging traces.
 joinInFacts :: DataflowLattice f -> FactBase f -> FactBase f
 joinInFacts (lattice @ DataflowLattice {fact_bot = bot, fact_join = fj}) fb =
-  mkFactBase lattice $ map botJoin $ mapToList fb
+  mkFactBase lattice $ map botJoin $ foldrWithKey (curry (:)) [] fb
     where botJoin (l, f) = (l, snd $ fj l (OldFact bot) (NewFact f))
 
 forwardBlockList :: (NonLocal n, LabelsPtr entry)
@@ -451,7 +452,7 @@ arbGraph pass@BwdPass { bp_lattice  = lattice,
     arbx arb thing f = [(rg, fb)
                        | (rg, f) <- arb thing f
                        , let fb = joinInFacts lattice $
-                                  mapSingleton (entryLabel thing) f]
+                                  singleton (entryLabel thing) f]
      -- joinInFacts adds debugging information
 
      -- Outgoing factbase is restricted to Labels *not* in
@@ -461,7 +462,7 @@ arbGraph pass@BwdPass { bp_lattice  = lattice,
       = fixpoint Bwd lattice do_block (map entryLabel (backwardBlockList entries blockmap)) blockmap init_fbase
       where
         do_block :: forall x. Block n C x -> Fact x f -> m (DG f n C x, LabelMap f)
-        do_block b f = [(g, mapSingleton (entryLabel b) f) | (g, f) <- block b f]
+        do_block b f = [(g, singleton (entryLabel b) f) | (g, f) <- block b f]
 
 
 
@@ -519,8 +520,8 @@ updateFact :: DataflowLattice f
            -> ([Label], FactBase f)
 -- See Note [TxFactBase change flag]
 updateFact lat newblocks lbl new_fact (cha, fbase)
-  | NoChange <- cha2, lbl `mapMember` newblocks  = (cha,     fbase)
-  | otherwise         = (lbl:cha, mapInsert lbl res_fact fbase)
+  | NoChange <- cha2, Just _ <- newblocks !? lbl = (cha,     fbase)
+  | otherwise         = (lbl:cha, insert lbl res_fact fbase)
   where
     (cha2, res_fact) -- Note [Unreachable blocks]
        = case lookupFact lbl fbase of
@@ -548,10 +549,9 @@ fixpoint :: forall m n f. (Monad m, NonLocal n)
  -> (Fact C f -> m (DG f n C C, Fact C f))
 
 fixpoint direction lat do_block entries blockmap init_fbase
-  = [(GMany NothingO newblocks NothingO,
-      mapDeleteList (mapKeys blockmap) fbase)
+  = [(GMany NothingO newblocks NothingO, difference fbase blockmap)
     --  | () <- trace ("fixpoint: " ++ show (case direction of Fwd -> True; Bwd -> False) ++ " " ++ show (mapKeys blockmap) ++ show entries ++ " " ++ show (mapKeys init_fbase)) $ pure ()
-    | (fbase, newblocks) <- loop init_fbase entries mapEmpty]
+    | (fbase, newblocks) <- loop init_fbase entries empty]
     --  , () <- trace ("fixpoint DONE: " ++ show (mapKeys fbase) ++ show (mapKeys newblocks)) $ pure ()
     -- The successors of the Graph are the the Labels
     -- for which we have facts and which are *not* in
@@ -559,9 +559,9 @@ fixpoint direction lat do_block entries blockmap init_fbase
   where
     -- mapping from L -> Ls.  If the fact for L changes, re-analyse Ls.
     dep_blocks :: LabelMap [Label]
-    dep_blocks = mapFromListWith (++)
+    dep_blocks = fromListWith (++)
                         [ (l, [entryLabel b])
-                        | b <- mapElems blockmap
+                        | b <- toList blockmap
                         , l <- case direction of
                                  Fwd -> [entryLabel b]
                                  Bwd -> successors b
@@ -574,12 +574,12 @@ fixpoint direction lat do_block entries blockmap init_fbase
        -> m (FactBase f, LabelMap (DBlock f n C C))
 
     loop fbase []         newblocks = pure (fbase, newblocks)
-    loop fbase (lbl:todo) newblocks = case mapLookup lbl blockmap of
+    loop fbase (lbl:todo) newblocks = case blockmap !? lbl of
         Nothing  -> loop fbase todo newblocks
         Just blk -> do
             -- trace ("analysing: " ++ show lbl) $ pure ()
             (rg, out_facts) <- do_block blk fbase
-            let (changed, fbase') = mapFoldWithKey
+            let (changed, fbase') = foldrWithKey
                                       (updateFact lat newblocks)
                                       ([],fbase) out_facts
             -- trace ("fbase': " ++ show (mapKeys fbase')) $ pure ()
@@ -587,12 +587,12 @@ fixpoint direction lat do_block entries blockmap init_fbase
 
             let to_analyse
                   = filter (`notElem` todo) $
-                    concatMap (\l -> mapFindWithDefault [] l dep_blocks) changed
+                    concatMap (fromMaybe [] . (!?) dep_blocks) changed
 
             -- trace ("to analyse: " ++ show to_analyse) $ pure ()
 
             let newblocks' = case rg of
-                               GMany _ blks _ -> mapUnion blks newblocks
+                               GMany _ blks _ -> unionWith (pure pure) blks newblocks
 
             loop fbase' (todo ++ to_analyse) newblocks'
 
@@ -699,14 +699,14 @@ normalizeGraph g = (mapGraphBlocks dropFact g, facts g)
           facts :: DG f n e x -> FactBase f
           facts GNil = noFacts
           facts (GUnit _) = noFacts
-          facts (GMany _ body exit) = bodyFacts body `mapUnion` exitFacts exit
+          facts (GMany _ body exit) = unionWith (pure pure) (bodyFacts body) (exitFacts exit)
           exitFacts :: MaybeO x (DBlock f n C O) -> FactBase f
           exitFacts NothingO = noFacts
-          exitFacts (JustO (DBlock f b)) = mapSingleton (entryLabel b) f
+          exitFacts (JustO (DBlock f b)) = singleton (entryLabel b) f
           bodyFacts :: LabelMap (DBlock f n C C) -> FactBase f
-          bodyFacts body = mapFoldWithKey f noFacts body
+          bodyFacts body = foldrWithKey f noFacts body
             where f :: forall t a x. Label -> DBlock a t C x -> LabelMap a -> LabelMap a
-                  f lbl (DBlock f _) fb = mapInsert lbl f fb
+                  f lbl (DBlock f _) fb = insert lbl f fb
 
 --- implementation of the constructors (boring)
 
@@ -740,7 +740,7 @@ class ShapeLifter e x where
 
 instance ShapeLifter C O where
   singletonDG f n = gUnitCO (DBlock f (BlockCO n BNil))
-  fwdEntryFact     n f  = mapSingleton (entryLabel n) f
+  fwdEntryFact     n f  = singleton (entryLabel n) f
   bwdEntryFact lat n fb = getFact lat (entryLabel n) fb
   ftransfer (FwdTransfer3 (ft, _, _)) n f = ft n f
   btransfer (BwdTransfer3 (bt, _, _)) n f = bt n f

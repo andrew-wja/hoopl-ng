@@ -12,6 +12,7 @@ module Compiler.Hoopl.Passes.Dominator
   )
 where
 
+import Data.Map.Class
 import Data.Maybe
 import qualified Data.Set as Set
 
@@ -84,12 +85,12 @@ tree facts = Dominates Entry $ merge $ map reverse $ map mkList facts
   where merge lists = mapTree $ children $ filter (not . null) lists
         children = foldl addList noFacts
         addList :: FactBase [[Label]] -> [Label] -> FactBase [[Label]]
-        addList map (x:xs) = mapInsert x (xs:existing) map
+        addList map (x:xs) = insert x (xs:existing) map
             where existing = fromMaybe [] $ lookupFact x map
         addList _ [] = error "this can't happen"
         mapTree :: FactBase [[Label]] -> [DominatorTree]
-        mapTree map = [Dominates (Labelled x) (merge lists) |
-                                                    (x, lists) <- mapToList map]
+        mapTree map = [Dominates (Labelled x) (merge lists)
+                      | (x, lists) <- foldrWithKey (curry (:)) [] map]
         mkList (l, doms) = l : domPath doms
 
 
@@ -123,7 +124,7 @@ instance Show DominatorNode where
 -- | Takes FactBase from dominator analysis and returns a map from each 
 -- label to its immediate dominator, if any
 immediateDominators :: FactBase Doms -> LabelMap Label
-immediateDominators = mapFoldWithKey add mapEmpty
-    where add l (PElem (DPath (idom:_))) = mapInsert l idom 
+immediateDominators = foldrWithKey add empty
+    where add l (PElem (DPath (idom:_))) = insert l idom
           add _ _ = id
 
