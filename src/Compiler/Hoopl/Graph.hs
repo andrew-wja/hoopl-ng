@@ -15,6 +15,7 @@ module Compiler.Hoopl.Graph
     -- * Graph
   , Graph, Graph'(..)
   , NonLocal(entryLabel, successors)
+  , gShape
 
   -- ** Constructing graphs
   , bodyGraph
@@ -99,6 +100,17 @@ data Graph' block n e x where
         -> Body' block n
         -> MaybeO x (block n C O)
         -> Graph' block n e x
+
+gShape :: Graph' block n e x -> (Shape e, Shape x)
+gShape = \ case
+    GNil -> (Open, Open)
+    GUnit _ -> (Open, Open)
+    GMany a _ b ->
+        let f :: MaybeO x a -> Shape x
+            f = \ case
+                NothingO -> Closed
+                JustO _ -> Open
+        in (f a, f b)
 
 -------------------------------
 -- | Gives access to the anchor points for

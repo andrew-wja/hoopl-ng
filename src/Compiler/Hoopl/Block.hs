@@ -9,12 +9,14 @@ module Compiler.Hoopl.Block (
   , MaybeO(..), MaybeC(..)
   , IndexedCO
   , Shape(..)
+  , shape
 
     -- * Blocks
   , Block(..)
 
     -- ** Predicates on Blocks
   , isEmptyBlock
+  , blockShape
 
     -- ** Constructing blocks
   , emptyBlock, blockCons, blockSnoc
@@ -88,6 +90,11 @@ data Shape ex where
   Closed :: Shape C
   Open   :: Shape O
 
+shape :: a -> b -> Shape x -> IndexedCO x a b
+shape = \ a b -> \ case
+    Closed -> a
+    Open -> b
+
 
 -- -----------------------------------------------------------------------------
 -- The Block type
@@ -118,6 +125,17 @@ isEmptyBlock :: Block n e x -> Bool
 isEmptyBlock BNil       = True
 isEmptyBlock (BCat l r) = isEmptyBlock l && isEmptyBlock r
 isEmptyBlock _          = False
+
+blockShape :: Block n e x -> (Shape e, Shape x)
+blockShape = \ case
+    BlockCO _ _ -> (Closed, Open)
+    BlockCC _ _ _ -> (Closed, Closed)
+    BlockOC _ _ -> (Open, Closed)
+    BNil -> (Open, Open)
+    BMiddle _ -> (Open, Open)
+    BCat _ _ -> (Open, Open)
+    BSnoc _ _ -> (Open, Open)
+    BCons _ _ -> (Open, Open)
 
 
 -- Building
