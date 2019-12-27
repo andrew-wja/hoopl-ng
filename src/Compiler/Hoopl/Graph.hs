@@ -44,7 +44,6 @@ module Compiler.Hoopl.Graph
   )
 where
 
-import Compiler.Hoopl.Collections
 import Compiler.Hoopl.Block
 import Compiler.Hoopl.Label
 
@@ -52,6 +51,7 @@ import Control.Applicative as AP (Applicative(..))
 import Control.Monad.Trans.State (State, runState, state)
 import Data.Functor.Identity (Identity (..))
 import Data.Map.Class
+import qualified Data.Set.Class as Set
 
 -- -----------------------------------------------------------------------------
 -- Body
@@ -293,7 +293,7 @@ instance LabelsPtr Label where
   targetLabels l = [l]
 
 instance LabelsPtr LabelSet where
-  targetLabels = setElems
+  targetLabels = Set.toList
 
 instance LabelsPtr l => LabelsPtr [l] where
   targetLabels = concatMap targetLabels
@@ -344,7 +344,7 @@ graphDfs :: (LabelMap (block n C C) -> block n O C -> LabelSet -> [block n C C])
          -> (Graph' block n O x -> [block n C C])
 graphDfs _     (GNil)    = []
 graphDfs _     (GUnit{}) = []
-graphDfs order (GMany (JustO entry) body _) = order body entry setEmpty
+graphDfs order (GMany (JustO entry) body _) = order body entry Set.empty
 
 postorder_dfs = graphDfs postorder_dfs_from_except
 preorder_dfs  = graphDfs preorder_dfs_from_except
@@ -356,11 +356,11 @@ postorder_dfs_from_except blocks b visited =
  where
    vnode :: block C C -> ([block C C] -> LabelSet -> a) -> [block C C] -> LabelSet -> a
    vnode block cont acc visited =
-        if setMember id visited then
+        if Set.member id visited then
             cont acc visited
         else
             let cont' acc visited = cont (block:acc) visited in
-            vchildren (get_children block) cont' acc (setInsert id visited)
+            vchildren (get_children block) cont' acc (Set.insert id visited)
       where id = entryLabel block
    vchildren :: forall a. [block C C] -> ([block C C] -> LabelSet -> a) -> [block C C] -> LabelSet -> a
    vchildren bs cont acc visited = next bs acc visited
@@ -375,16 +375,16 @@ postorder_dfs_from_except blocks b visited =
 
 postorder_dfs_from
     :: (NonLocal block, LabelsPtr b) => LabelMap (block C C) -> b -> [block C C]
-postorder_dfs_from blocks b = postorder_dfs_from_except blocks b setEmpty
+postorder_dfs_from blocks b = postorder_dfs_from_except blocks b Set.empty
 
 
 ----------------------------------------------------------------
 
 marked :: Label -> State LabelSet Bool
-marked l = state $ \v -> (setMember l v, v)
+marked l = state $ \v -> (Set.member l v, v)
 
 mark   :: Label -> State LabelSet ()
-mark   l = state $ \v -> ((), setInsert l v)
+mark   l = state $ \v -> ((), Set.insert l v)
 
 preorder_dfs_from_except :: forall block e . (NonLocal block, LabelsPtr e)
                          => LabelMap (block C C) -> e -> LabelSet -> [block C C]
@@ -414,29 +414,27 @@ cons a as tail = a : as tail
 
 labelsDefined :: forall block n e x . NonLocal (block n) => Graph' block n e x
               -> LabelSet
-labelsDefined GNil      = setEmpty
-labelsDefined (GUnit{}) = setEmpty
+labelsDefined GNil      = Set.empty
+labelsDefined (GUnit{}) = Set.empty
 labelsDefined (GMany _ body x) = foldrWithKey addEntry (exitLabel x) body
-  where addEntry :: forall a. ElemOf LabelSet -> a -> LabelSet -> LabelSet
-        addEntry label _ labels = setInsert label labels
+  where addEntry :: forall a. Label -> a -> LabelSet -> LabelSet
+        addEntry label _ = Set.insert label
         exitLabel :: MaybeO x (block n C O) -> LabelSet
-        exitLabel NothingO  = setEmpty
-        exitLabel (JustO b) = setSingleton (entryLabel b)
+        exitLabel = foldr (Set.insert . entryLabel) Set.empty
 
 labelsUsed :: forall block n e x. NonLocal (block n) => Graph' block n e x
            -> LabelSet
-labelsUsed GNil      = setEmpty
-labelsUsed (GUnit{}) = setEmpty
+labelsUsed GNil      = Set.empty
+labelsUsed (GUnit{}) = Set.empty
 labelsUsed (GMany e body _) = foldr addTargets (entryTargets e) body
   where addTargets :: forall e. block n e C -> LabelSet -> LabelSet
-        addTargets block labels = setInsertList (successors block) labels
+        addTargets = flip (foldr Set.insert) . successors
         entryTargets :: MaybeO e (block n O C) -> LabelSet
-        entryTargets NothingO = setEmpty
-        entryTargets (JustO b) = addTargets b setEmpty
+        entryTargets = foldr addTargets Set.empty
 
 externalEntryLabels :: forall n .
                        NonLocal n => LabelMap (Block n C C) -> LabelSet
-externalEntryLabels body = defined `setDifference` used
+externalEntryLabels body = defined `Set.difference` used
   where defined = labelsDefined g
         used = labelsUsed g
         g = GMany NothingO body NothingO

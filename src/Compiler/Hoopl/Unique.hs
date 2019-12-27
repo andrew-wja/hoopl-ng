@@ -20,8 +20,6 @@ module Compiler.Hoopl.Unique
 
 where
 
-import Compiler.Hoopl.Collections
-
 import Control.Monad.Trans.State
 import Data.Functor.Identity (Identity (..))
 import qualified Data.IntMap as M
@@ -47,29 +45,7 @@ intToUnique = id
 -----------------------------------------------------------------------------
 -- UniqueSet
 
-newtype UniqueSet = US S.IntSet deriving (Eq, Ord, Show)
-
-instance IsSet UniqueSet where
-  type ElemOf UniqueSet = Unique
-
-  setNull (US s) = S.null s
-  setSize (US s) = S.size s
-  setMember k (US s) = S.member k s
-
-  setEmpty = US S.empty
-  setSingleton k = US (S.singleton k)
-  setInsert k (US s) = US (S.insert k s)
-  setDelete k (US s) = US (S.delete k s)
-
-  setUnion (US x) (US y) = US (S.union x y)
-  setDifference (US x) (US y) = US (S.difference x y)
-  setIntersection (US x) (US y) = US (S.intersection x y)
-  setIsSubsetOf (US x) (US y) = S.isSubsetOf x y
-
-  setFold k z (US s) = S.foldr k z s
-
-  setElems (US s) = S.elems s
-  setFromList ks = US (S.fromList ks)
+type UniqueSet = S.IntSet
 
 -----------------------------------------------------------------------------
 -- UniqueMap

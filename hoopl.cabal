@@ -69,6 +69,7 @@ Library
 
   Hs-Source-Dirs:    src
   Build-Depends:     Map >= 0.1.3.2 && < 0.2
+                   , Set >= 0.0.2 && < 0.1
                    , base >= 4.3 && < 5
                    , containers >= 0.5 && < 0.7
                    , filtrable >= 0.1.2.0 && < 0.2
@@ -80,7 +81,6 @@ Library
                      Compiler.Hoopl.Passes.Dominator,
                      Compiler.Hoopl.Passes.DList,
                      Compiler.Hoopl.Passes.Live,
-                     Compiler.Hoopl.Collections,
                      Compiler.Hoopl.Combinators,
                      Compiler.Hoopl.Dataflow,
                      Compiler.Hoopl.Debug,
