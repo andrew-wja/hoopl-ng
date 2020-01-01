@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, GADTs, TypeFamilies, ScopedTypeVariables, RankNTypes #-}
+{-# LANGUAGE CPP, GADTs, TypeFamilies, ScopedTypeVariables, RankNTypes,
+             MultiParamTypeClasses, FlexibleContexts, FlexibleInstances #-}
 #if __GLASGOW_HASKELL__ >= 701
 {-# LANGUAGE Safe #-}
 #endif
@@ -44,6 +45,10 @@ module Compiler.Hoopl.Block (
 
   ) where
 
+import Control.Categorical.Functor (NT (..))
+import qualified Control.Categorical.Functor as C
+import Control.Categorical.Monad (Kleisli (..))
+import qualified Control.Categorical.Monad as C
 import Control.Monad.StrictIdentity
 import Data.Functor.Identity (Identity (..))
 
@@ -115,6 +120,11 @@ data Block n e x where
   BSnoc   :: Block n O O -> n O O       -> Block n O O
   BCons   :: n O O       -> Block n O O -> Block n O O
 
+instance (Applicative m, C.Monad (->) m) => C.Functor (NT (NT (Kleisli (->) m))) (NT (NT (Kleisli (->) m))) Block where
+    map f' = NT (NT (Kleisli (traverseBlock (kleisli (nt (nt f'))))))
+
+instance C.Functor (NT (NT (->))) (NT (NT (->))) Block where
+    map f' = NT (NT (mapBlock (nt (nt f'))))
 
 -- -----------------------------------------------------------------------------
 -- Simple operations on Blocks

@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP, GADTs, TypeFamilies, ScopedTypeVariables,
-    RankNTypes, FlexibleInstances, TypeSynonymInstances #-}
+    RankNTypes, TypeSynonymInstances,
+    MultiParamTypeClasses, FlexibleContexts, FlexibleInstances #-}
 #if __GLASGOW_HASKELL__ >= 701
 {-# LANGUAGE Safe #-}
 #endif
@@ -48,6 +49,9 @@ import Compiler.Hoopl.Block
 import Compiler.Hoopl.Label
 
 import Control.Applicative as AP (Applicative(..))
+import Control.Categorical.Functor (NT (..))
+import qualified Control.Categorical.Functor as C
+import Control.Categorical.Monad (Kleisli (..))
 import Control.Monad.Trans.State (State, runState, state)
 import Data.Functor.Identity (Identity (..))
 import Data.Map.Class
@@ -111,6 +115,13 @@ gShape = \ case
                 NothingO -> Closed
                 JustO _ -> Open
         in (f a, f b)
+
+instance (Applicative m, C.Functor (NT (NT (Kleisli (->) m))) (NT (NT (Kleisli (->) m))) block) => C.Functor (NT (NT (Kleisli (->) m))) (NT (NT (Kleisli (->) m))) (Graph' block) where
+    map f' = NT (NT (Kleisli (traverseGraphBlocks (kleisli (nt (nt (C.map f')))))))
+
+instance C.Functor (NT (NT (->))) (NT (NT (->))) block => C.Functor (NT (NT (->))) (NT (NT (->))) (Graph' block) where
+    map f' = NT (NT (mapGraphBlocks (nt (nt (C.map f')))))
+
 
 -------------------------------
 -- | Gives access to the anchor points for
