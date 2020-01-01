@@ -29,11 +29,11 @@ module Compiler.Hoopl.Graph
   , splice, gSplice
 
   -- ** Maps
-  , mapGraph, mapGraph3, mapGraphBlocks
-  , traverseGraph, traverseGraph3, traverseGraphBlocks
+  , mapGraph, mapGraph3, mapGraphBlocks, mapGraph'
+  , traverseGraph, traverseGraph3, traverseGraphBlocks, traverseGraph'
 
   -- ** Folds
-  , foldGraphNodes
+  , foldGraphNodes, foldGraphNodes3
 
   -- ** Extracting Labels
   , labelsDefined, labelsUsed, externalEntryLabels
@@ -249,6 +249,9 @@ mapGraphBlocks :: forall block n block' n' e x .
                -> (Graph' block n e x -> Graph' block' n' e x)
 mapGraphBlocks f = runIdentity . traverseGraphBlocks (Identity . f)
 
+mapGraph' :: NT (NT (->)) n n' -> NT (NT (->)) (Graph n) (Graph n')
+mapGraph' f = NT (NT (mapGraphBlocks (mapBlock (nt (nt f)))))
+
 traverseGraph :: Applicative p => (∀ e x . n e x -> p (n' e x)) -> Graph n e x -> p (Graph n' e x)
 traverseGraph f = traverseGraphBlocks (traverseBlock f)
 
@@ -268,6 +271,9 @@ traverseGraphBlocks f = go where
         GUnit b -> GUnit <$> f b
         GMany e b x -> GMany <$> traverse f e <*> traverse f b <*> traverse f x
 
+traverseGraph' :: Applicative p => NT (NT (Kleisli (->) p)) n n' -> NT (NT (Kleisli (->) p)) (Graph n) (Graph n')
+traverseGraph' f = NT (NT (Kleisli (traverseGraphBlocks (traverseBlock (kleisli (nt (nt f)))))))
+
 
 -- -----------------------------------------------------------------------------
 -- Folds
@@ -278,7 +284,12 @@ traverseGraphBlocks f = go where
 foldGraphNodes :: forall n a .
                   (forall e x . n e x       -> a -> a)
                -> (forall e x . Graph n e x -> a -> a)
-foldGraphNodes f = graph
+foldGraphNodes f = foldGraphNodes3 (f, f, f)
+
+foldGraphNodes3 :: forall n a .
+                   (n C O -> a -> a, n O O -> a -> a, n O C -> a -> a)
+                -> (forall e x . Graph n e x -> a -> a)
+foldGraphNodes3 (fCO, fOO, fOC) = graph
     where graph :: forall e x . Graph n e x -> a -> a
           lift  :: forall thing ex . (thing -> a -> a) -> (MaybeO ex thing -> a -> a)
 
@@ -289,7 +300,7 @@ foldGraphNodes f = graph
           lift f (JustO thing)    = f thing
 
           block :: Block n e x -> IndexedCO e a a -> IndexedCO x a a
-          block = foldBlockNodesF f
+          block = foldBlockNodesF3 (fCO, fOO, fOC)
 
 
 ----------------------------------------------------------------
