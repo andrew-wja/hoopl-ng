@@ -41,7 +41,7 @@ class NodeWithVars n => AssignmentNode n where
 type Live n = VarSet n
 
 liveLattice :: NodeWithVars n => Const (DataflowLattice (Live n)) n
-liveLattice = Const $ DataflowLattice
+liveLattice = Const DataflowLattice
   { fact_name       = "Live variables"
   , fact_bot        = Set.empty
   , fact_join       = \ _ (OldFact old) (NewFact new) ->

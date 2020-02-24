@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, EmptyDataDecls, PatternGuards, TypeFamilies, NamedFieldPuns #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, TypeFamilies, NamedFieldPuns #-}
 module Test (parseTest, evalTest, optTest) where
 
 import Compiler.Hoopl hiding (empty)
@@ -27,12 +27,12 @@ parseTest file =
   do text <- readFile file
      case parse file text of
        Left err -> error err
-       Right p  -> mapM (putStrLn . showProc . snd) (runSimpleUniqueMonad $ runWithFuel 0 p) >> return ()
+       Right p  -> () <$ mapM (putStrLn . showProc . snd) (runSimpleUniqueMonad $ runWithFuel 0 p)
 
 evalTest' :: String -> String -> ErrorM String
 evalTest' file text =
   do procs   <- parse file text
-     (_, vs) <- (testProg . snd . unzip) (runSimpleUniqueMonad $ runWithFuel 0 procs)
+     (_, vs) <- (testProg . fmap snd) (runSimpleUniqueMonad $ runWithFuel 0 procs)
      return $ "returning: " ++ show vs
   where
     testProg procs@(Proc {name, args} : _) = evalProg procs vsupply name (toV args)
@@ -108,10 +108,10 @@ optTest file expectedFile =
        (Left err, _) -> error err
        (_, Left err) -> error err
        (Right lps, Right exps) ->
-         case optTest' (liftM (snd . unzip) lps) of
+         case optTest' (fmap snd <$> lps) of
            Left err -> error err
            Right p  -> do { let opted = runSimpleUniqueMonad $ runWithFuel fuel p
-                                lbmaps = runSimpleUniqueMonad $ runWithFuel fuel (liftM (fst . unzip) lps)
+                                lbmaps = runSimpleUniqueMonad $ runWithFuel fuel (fmap fst <$> lps)
                                 expected = runSimpleUniqueMonad $ runWithFuel fuel exps
                           ; compareAst (toAst (zip lbmaps opted)) (toAst expected)
                           }

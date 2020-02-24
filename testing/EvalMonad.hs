@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, EmptyDataDecls, PatternGuards, TypeFamilies, NamedFieldPuns , FlexibleInstances, MultiParamTypeClasses, TypeSynonymInstances #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, TypeFamilies, NamedFieldPuns , FlexibleInstances, MultiParamTypeClasses, TypeSynonymInstances #-}
 
 module EvalMonad (ErrorM, VarEnv, B, State,
                   EvalM, runProg, inNewFrame, get_proc, get_block,
@@ -10,24 +10,21 @@ import Control.Applicative as AP (Applicative(..))
 import Control.Monad.Except
 import qualified Data.Map as M
 import Data.Map.Class
-import Prelude hiding (succ)
 
-import Compiler.Hoopl hiding ((<*>))
+import Compiler.Hoopl
 import IR
 
 type ErrorM        = Either String
 type InnerErrorM v = Either (State v, String)
 
-data EvalM v a = EvalM (State v -> InnerErrorM v (State v, a))
+newtype EvalM v a = EvalM (State v -> InnerErrorM v (State v, a))
+  deriving (Functor)
 
 instance Monad (EvalM v) where
   return = AP.pure
   EvalM f >>= k = EvalM $ \s -> do (s', x) <- f s
                                    let EvalM f' = k x
                                    f' s'
-
-instance Functor (EvalM v) where
-  fmap = liftM
 
 instance Applicative (EvalM v) where
   pure x = EvalM (\s -> return (s, x))

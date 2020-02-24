@@ -1,14 +1,18 @@
 {-# OPTIONS_GHC -Wall -fno-warn-name-shadowing #-}
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, EmptyDataDecls, PatternGuards, TypeFamilies, NamedFieldPuns , FlexibleInstances, MultiParamTypeClasses, TypeSynonymInstances,  FlexibleContexts #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, TypeFamilies, NamedFieldPuns, FlexibleInstances, MultiParamTypeClasses, TypeSynonymInstances, FlexibleContexts #-}
 
 module Eval (evalProg, ErrorM) where
 
+import Control.Applicative (liftA2)
 import Control.Monad.Except
+import Data.Bool (bool)
+import Data.Foldable (traverse_)
+import Data.Function (on)
 import qualified Data.Map    as M
 import Prelude hiding (succ)
 
 import EvalMonad
-import Compiler.Hoopl
+import Compiler.Hoopl hiding ((<*>))
 import IR
 
 -- Evaluation functions
@@ -41,19 +45,15 @@ evalF :: EvalTarget v => Insn C O -> EvalM v ()
 evalF (Label _) = return ()
 
 evalM :: EvalTarget v => Insn O O -> EvalM v ()
-evalM (Assign var e) =
-  do v_e <- eval e
-     set_var var v_e
+evalM (Assign var e) = set_var var =<< eval e
 evalM (Store addr e) =
   do v_addr <- eval addr >>= toAddr
-     v_e    <- eval e
+     v_e <- eval e
      -- StoreEvt recorded in set_heap
      set_heap v_addr v_e
 
 evalL :: EvalTarget v => Insn O C -> EvalM v [v]
-evalL (Branch bid) =
-  do b <- get_block bid
-     evalB b
+evalL (Branch bid) = get_block bid >>= evalB
 evalL (Cond e t f) =
   do v_e <- eval e >>= toBool
      evalL $ Branch $ if v_e then t else f
@@ -63,12 +63,11 @@ evalL (Call ress f args succ) =
      f_ress <- evalProc f v_args
      if length ress == length f_ress then return ()
       else throwError $ "function " ++ f ++ " returned unexpected # of args"
-     _ <- mapM (uncurry set_var) $ zip ress f_ress
+     uncurry set_var `traverse_` zip ress f_ress
      evalL $ Branch succ
 evalL (Return es) =
   do vs <- mapM eval es
-     event $ RetEvt vs
-     return vs
+     vs <$ event (RetEvt vs)
 
 class Show v => EvalTarget v where
   toAddr :: v    -> EvalM v Integer
@@ -83,9 +82,7 @@ instance EvalTarget Value where
   eval (Lit (Int  i)) = return $ I i
   eval (Lit (Bool b)) = return $ B b
   eval (Var var) = get_var var
-  eval (Load addr) =
-    do v_addr <- eval addr >>= toAddr
-       get_heap v_addr
+  eval (Load addr) = eval addr >>= toAddr >>= get_heap
   eval (Binop bop e1 e2) =
     do v1 <- eval e1
        v2 <- eval e2
@@ -106,9 +103,7 @@ instance EvalTarget Value where
               b = liftX B fromB
 
               liftX :: Monad m => (a -> b) -> (b -> m a) -> (a -> a -> a) -> b -> b -> m b
-              liftX up dwn = \ op x y -> do v_x <- dwn x
-                                            v_y <- dwn y
-                                            return $ up $ op v_x v_y
+              liftX up dwn = \ op -> (fmap . fmap) up <$> (liftA2 op `on` dwn)
               fromI (I x) = return x
               fromI (B _) = throwError "fromI: got a B"
 
@@ -125,13 +120,8 @@ instance EvalTarget Integer where
   eval (Lit (Bool True)) = return 1
   eval (Lit (Bool False)) = return 0
   eval (Var var) = get_var var
-  eval (Load addr) =
-    do v_addr <- eval addr >>= toAddr
-       get_heap v_addr
-  eval (Binop bop e1 e2) =
-    do v1 <- eval e1
-       v2 <- eval e2
-       return $ liftBinOp bop v1 v2
+  eval (Load addr) = eval addr >>= toAddr >>= get_heap
+  eval (Binop bop e1 e2) = liftBinOp bop <$> eval e1 <*> eval e2
     where
       liftBinOp = liftOp
         where liftOp Add  = i (+)
@@ -145,7 +135,7 @@ instance EvalTarget Integer where
               liftOp Gte  = b (>=)
               liftOp Lte  = b (<=)
               i = id
-              b opr x y = if opr x y then 1 else 0
+              b opr x y = bool 0 1 $ opr x y
 
 
 -- Symbolic evaluation.
@@ -166,10 +156,5 @@ instance EvalTarget Sym where
   toBool _ = undefined
   eval (Lit l) = return $ L l
   eval (Var var) = get_var var
-  eval (Load addr) =
-    do v_addr <- eval addr >>= toAddr
-       get_heap v_addr
-  eval (Binop bop e1 e2) =
-    do v1 <- eval e1
-       v2 <- eval e2
-       return $ BO bop v1 v2
+  eval (Load addr) = eval addr >>= toAddr >>= get_heap
+  eval (Binop bop e1 e2) = BO bop <$> eval e1 <*> eval e2

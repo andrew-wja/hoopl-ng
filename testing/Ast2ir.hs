@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, EmptyDataDecls, PatternGuards, TypeFamilies, NamedFieldPuns #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, TypeFamilies, NamedFieldPuns #-}
 module Ast2ir (astToIR, IdLabelMap) where
 
 
@@ -50,17 +50,16 @@ toBlock (A.Block { A.first = f, A.mids = ms, A.last = l }) =
      return $ mkFirst f' H.<*> mkMiddles ms' H.<*> mkLast l'
 
 toFirst :: A.Lbl -> LabelMapM (I.Insn C O)
-toFirst = liftM I.Label . labelFor
+toFirst = fmap I.Label . labelFor
 
 toMid :: A.Insn -> LabelMapM (I.Insn O O)
 toMid (A.Assign v e) = return $ I.Assign v e
 toMid (A.Store  a e) = return $ I.Store  a e
 
 toLast :: A.Control -> LabelMapM (I.Insn O C)
-toLast (A.Branch l)   = labelFor l >>= return . I.Branch
-toLast (A.Cond e t f) = labelFor t >>= \t' ->
-                        labelFor f >>= \f' -> return (I.Cond e t' f')
-toLast (A.Call rs f as l) = labelFor l >>= return . I.Call rs f as
+toLast (A.Branch l)   = I.Branch <$> labelFor l
+toLast (A.Cond e t f) = I.Cond e <$> labelFor t <*> labelFor f
+toLast (A.Call rs f as l) = I.Call rs f as <$> labelFor l
 toLast (A.Return es)      = return $ I.Return es
 
 
@@ -69,16 +68,14 @@ toLast (A.Return es)      = return $ I.Return es
 --------------------------------------------------------------------------------
 
 type IdLabelMap = M.Map String Label
-data LabelMapM a = LabelMapM (IdLabelMap -> I.M (IdLabelMap, a))
+newtype LabelMapM a = LabelMapM (IdLabelMap -> I.M (IdLabelMap, a))
+  deriving (Functor)
 
 instance Monad LabelMapM where
   return = AP.pure
   LabelMapM f1 >>= k = LabelMapM (\m -> do (m', x) <- f1 m
                                            let (LabelMapM f2) = k x
                                            f2 m')
-
-instance Functor LabelMapM where
-  fmap = liftM
 
 instance Applicative LabelMapM where
   pure x = LabelMapM (\m -> return (m, x))

@@ -64,7 +64,7 @@ iterFwdRw rw3 = wrapFR iter rw3
                -> t
                -> a
                -> m1 (m2 (Graph n e x, FwdRewrite m n f))
-       iter rw n = (liftM $ liftM $ fadd_rw (iterFwdRw rw3)) . rw n
+       iter rw n = (fmap . fmap) (fadd_rw (iterFwdRw rw3)) . rw n
 
 -- | Function inspired by 'rew' in the paper
 _frewrite_cps :: Monad m
@@ -74,10 +74,9 @@ _frewrite_cps :: Monad m
              -> n e x
              -> f
              -> m a
-_frewrite_cps j n rw node f =
-    do mg <- rw node f
-       case mg of Nothing -> n
-                  Just gr -> j gr
+_frewrite_cps j n rw node = rw node >=> \ case
+    Nothing -> n
+    Just gr -> j gr
 
 
 
@@ -112,9 +111,7 @@ thenBwdRw rw1 rw2 = wrapBR2 f rw1 rw2
              -> t1
              -> t2
              -> m1 (Maybe (Graph n e x, BwdRewrite m n f))
-        f _ rw1 rw2' n f = do
-          res1 <- rw1 n f
-          case res1 of
+        f _ rw1 rw2' n f = rw1 n f >>= \ case
             Nothing -> rw2' n f
             Just gr -> return $ Just $ badd_rw rw2 gr
 
@@ -127,7 +124,7 @@ iterBwdRw rw = wrapBR f rw
              -> t1
              -> t2
              -> m1 (m2 (Graph n e x, BwdRewrite m n f))
-        f _ rw' n f = liftM (liftM (badd_rw (iterBwdRw rw))) (rw' n f)
+        f _ rw' n f = fmap (fmap (badd_rw (iterBwdRw rw))) (rw' n f)
 
 -- | Function inspired by 'add' in the paper
 badd_rw :: Monad m
@@ -169,10 +166,10 @@ pairFwd pass1 pass2 = FwdPass lattice transfer rewrite
                           -> t1
                           -> f'
                           -> m (m1 (t, FwdRewrite m' n' f'))
-                project rw = \n pair -> liftM (liftM repair) $ rw n (proj pair)
+                project rw = \n -> (fmap . fmap) repair . rw n . proj
                 repair :: forall t.
                           (t, FwdRewrite m' n' f) -> (t, FwdRewrite m' n' f')
-                repair (g, rw') = (g, lift proj rw')
+                repair = fmap (lift proj)
 
 pairBwd :: forall m n f f' . 
            Monad m => BwdPass m n f -> BwdPass m n f' -> BwdPass m n (f, f')
@@ -203,12 +200,12 @@ pairBwd pass1 pass2 = BwdPass lattice transfer rewrite
                -> (n e x ->
                        Fact x (f,f') -> m (Maybe (Graph n e x, BwdRewrite m n (f,f'))))
               project Open = 
-                 \rw n pair -> liftM (liftM repair) $ rw n (     proj pair)
+                 \rw n -> (fmap . fmap) repair . rw n . proj
               project Closed = 
-                 \rw n pair -> liftM (liftM repair) $ rw n (fmap proj pair)
+                 \rw n -> (fmap . fmap) repair . rw n . fmap proj
               repair :: forall t.
                         (t, BwdRewrite m n f1) -> (t, BwdRewrite m n (f, f'))
-              repair (g, rw') = (g, lift proj rw')
+              repair = fmap (lift proj)
                 -- XXX specialize repair so that the cost
                 -- of discriminating is one per combinator not one
                 -- per rewrite

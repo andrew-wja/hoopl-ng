@@ -106,6 +106,7 @@ Library
 
 Test-Suite hoopl-test
   Default-Language:  Haskell2010
+  Default-Extensions:DeriveFunctor
   Type:              exitcode-stdio-1.0
   Main-Is:           Main.hs
   Other-modules:     Ast

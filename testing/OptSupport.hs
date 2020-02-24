@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, GADTs, RankNTypes #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -Wall -fno-warn-name-shadowing #-}
 module OptSupport (mapVE, mapEE, mapEN, mapVN, fold_EE, fold_EN, insnToG) where
 
@@ -28,6 +29,7 @@ mapVE _ _       = Nothing
 
 
 data Mapped a = Old a | New a
+  deriving (Functor)
 
 instance Monad Mapped where
   return = AP.pure
@@ -36,9 +38,6 @@ instance Monad Mapped where
   New a >>= k = asNew (k a)
     where asNew (Old a)   = New a
           asNew m@(New _) = m
-
-instance Functor Mapped where
-  fmap = liftM
 
 instance Applicative Mapped where
   pure = Old
@@ -57,15 +56,12 @@ ifNew (Old _) = Nothing
 
 type Mapping a b = a -> Mapped b
 
-(/@/) :: Mapping b c -> Mapping a b -> Mapping a c
-f /@/ g = \x -> g x >>= f
-
 
 class HasExpressions a where
   mapAllSubexpressions :: Mapping Expr Expr -> Mapping a a
 
 instance HasExpressions (Insn e x) where
-  mapAllSubexpressions = error "urk!" (mapVars, (/@/), makeTotal, ifNew)
+  mapAllSubexpressions = error "urk!" (mapVars, (<=<) :: (_ -> Mapping _ _) -> _, makeTotal, ifNew)
 
 mapVars :: (Var -> Maybe Expr) -> Mapping Expr Expr
 mapVars f e@(Var x) = makeTotalDefault e f x
@@ -86,7 +82,7 @@ mapEE f e@(Binop op e1 e2) =
                     where e' = Binop op (fromMaybe e1 e1') (fromMaybe e2 e2')
 
 mapEN _   (Label _)           = Nothing
-mapEN f   (Assign v e)        = liftM (Assign v) $ f e
+mapEN f   (Assign v e)        = Assign v <$> f e
 mapEN f   (Store addr e)      =
   case (f addr, f e) of
     (Nothing, Nothing) -> Nothing

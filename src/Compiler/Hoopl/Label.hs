@@ -39,7 +39,7 @@ instance Show Label where
   show (Label n) = "L" ++ show n
 
 freshLabel :: UniqueMonad m => m Label
-freshLabel = freshUnique >>= return . uniqueToLbl
+freshLabel = uniqueToLbl <$> freshUnique
 
 -----------------------------------------------------------------------------
 -- LabelSet

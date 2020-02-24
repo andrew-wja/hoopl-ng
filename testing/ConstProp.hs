@@ -71,7 +71,7 @@ constProp = mkFRewrite cp
  where
    cp :: Node e x -> ConstFact -> m (Maybe (Graph Node e x))
    cp node f
-     = return $ liftM insnToG $ mapVN (lookup f) node
+     = return $ insnToG <$> mapVN (lookup f) node
 
    mapVN :: (Var  -> Maybe Expr) -> MaybeChange (Node e x)
    mapVN      = mapEN . mapEE . mapVE

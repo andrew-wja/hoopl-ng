@@ -48,16 +48,11 @@ domLattice = addPoints "dominators" extend
 
 extend :: JoinFun DPath
 extend _ (OldFact (DPath l)) (NewFact (DPath l')) =
-                                (changeIf (l `lengthDiffers` j), DPath j)
-    where lx = filter (\elem -> Set.member elem common) l
-          rx = filter (\elem -> Set.member elem common) l'
+                                (changeIf ((() <$ l) /= (() <$ j)), DPath j)
+    where lx = filter (`Set.member` common) l
+          rx = filter (`Set.member` common) l'
           common = Set.intersection (Set.fromList l) (Set.fromList l')
           j = [x | (x, y) <- zip lx rx, x == y]
-
-          lengthDiffers [] [] = False
-          lengthDiffers (_:xs) (_:ys) = lengthDiffers xs ys
-          lengthDiffers [] (_:_) = True
-          lengthDiffers (_:_) [] = True
 
 
 
@@ -76,7 +71,7 @@ data DominatorTree = Dominates DominatorNode [DominatorTree]
 -- | Map from a FactBase for dominator lists into a
 -- dominator tree.  
 tree :: [(Label, Doms)] -> DominatorTree
-tree facts = Dominates Entry $ merge $ map reverse $ map mkList facts
+tree = Dominates Entry . merge . fmap (reverse . mkList)
    -- This code has been lightly tested.  The key insight is this: to
    -- find lists that all have the same head, convert from a list of
    -- lists to a finite map, in 'children'.  Then, to convert from the

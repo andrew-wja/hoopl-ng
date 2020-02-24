@@ -58,8 +58,8 @@ import Data.Functor.Identity (Identity (..))
 -- | Used at the type level to indicate an "open" structure with
 -- a unique, unnamed control-flow edge flowing in or out.         
 -- "Fallthrough" and concatenation are permitted at an open point.
-data O 
-       
+data O
+
 -- | Used at the type level to indicate a "closed" structure which
 -- supports control transfer only through the use of named
 -- labels---no "fallthrough" is permitted.  The number of control-flow
@@ -96,7 +96,7 @@ data Shape ex where
   Open   :: Shape O
 
 shape' :: a -> b -> Shape x -> IndexedCO x a b
-shape' = \ a b -> \ case
+shape' a b = \ case
     Closed -> a
     Open -> b
 

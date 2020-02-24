@@ -50,7 +50,7 @@ import Data.Maybe
 --              DataflowLattice
 -----------------------------------------------------------------------------
 
-data DataflowLattice a = DataflowLattice  
+data DataflowLattice a = DataflowLattice
  { fact_name       :: String          -- Documentation
  , fact_bot        :: a               -- Lattice bottom element
  , fact_join       :: JoinFun a       -- Lattice join plus change flag
@@ -94,7 +94,7 @@ data FwdPass m n f
             , fp_transfer :: FwdTransfer n f
             , fp_rewrite  :: FwdRewrite m n f }
 
-newtype FwdTransfer n f 
+newtype FwdTransfer n f
   = FwdTransfer3 { getFTransfer3 ::
                      ( n C O -> f -> f
                      , n O O -> f -> f
@@ -114,7 +114,7 @@ wrapFR :: (forall e x. (n  e x -> f  -> m  (Maybe (Graph n  e x, FwdRewrite m  n
           )
             -- ^ This argument may assume that any function passed to it
             -- respects fuel, and it must return a result that respects fuel.
-       -> FwdRewrite m  n  f 
+       -> FwdRewrite m  n  f
        -> FwdRewrite m' n' f'      -- see Note [Respects Fuel]
 wrapFR wrap (FwdRewrite3 (f, m, l)) = FwdRewrite3 (wrap f, wrap m, wrap l)
 
@@ -151,7 +151,7 @@ mkFRewrite3 :: forall m n f. FuelMonad m
             -> FwdRewrite m n f
 mkFRewrite3 f m l = FwdRewrite3 (lift f, lift m, lift l)
   where lift :: forall t t1 a. (t -> t1 -> m (Maybe a)) -> t -> t1 -> m (Maybe (a, FwdRewrite m n f))
-        lift rw node fact = liftM (liftM asRew) (withFuel =<< rw node fact)
+        lift rw node fact = fmap (fmap asRew) (withFuel =<< rw node fact)
         asRew :: forall t. t -> (t, FwdRewrite m n f)
         asRew g = (g, noFwdRewrite)
 
@@ -161,7 +161,7 @@ noFwdRewrite = FwdRewrite3 (noRewrite, noRewrite, noRewrite)
 noRewrite :: Applicative m => a -> b -> m (Maybe c)
 noRewrite _ _ = pure Nothing
 
-                               
+
 
 -- | Functions passed to 'mkFRewrite' should not be aware of the fuel supply.
 -- The result returned by 'mkFRewrite' respects fuel.
@@ -219,7 +219,7 @@ arfGraph pass@FwdPass { fp_lattice = lattice,
      -- Outgoing factbase is restricted to Labels *not* in
      -- in the Body; the facts for Labels *in*
      -- the Body are in the 'DG f n C C'
-    cat :: forall e a x f1 f2 f3. 
+    cat :: forall e a x f1 f2 f3.
            (f1 -> m (DG f n e a, f2))
         -> (f2 -> m (DG f n a x, f3))
         -> (f1 -> m (DG f n e x, f3))
@@ -262,13 +262,13 @@ arfGraph pass@FwdPass { fp_lattice = lattice,
 
     -- | Compose fact transformers and concatenate the resulting
     -- rewritten graphs.
-    {-# INLINE cat #-} 
+    {-# INLINE cat #-}
     cat ft1 ft2 f = [(g1 `dgSplice` g2, f2) | (g1,f1) <- ft1 f, (g2,f2) <- ft2 f1]
     arfx :: forall thing x .
             NonLocal thing
          => (thing C x ->        f -> m (DG f n C x, Fact x f))
          -> (thing C x -> Fact C f -> m (DG f n C x, Fact x f))
-    arfx arf thing fb = 
+    arfx arf thing fb =
       arf thing $ fromJust $ lookupFact (entryLabel thing) $ joinInFacts lattice fb
      -- joinInFacts adds debugging information
 
@@ -307,13 +307,13 @@ data BwdPass m n f
             , bp_transfer :: BwdTransfer n f
             , bp_rewrite  :: BwdRewrite m n f }
 
-newtype BwdTransfer n f 
+newtype BwdTransfer n f
   = BwdTransfer3 { getBTransfer3 ::
                      ( n C O -> f          -> f
                      , n O O -> f          -> f
                      , n O C -> FactBase f -> f
                      ) }
-newtype BwdRewrite m n f 
+newtype BwdRewrite m n f
   = BwdRewrite3 { getBRewrite3 ::
                     ( n C O -> f          -> m (Maybe (Graph n C O, BwdRewrite m n f))
                     , n O O -> f          -> m (Maybe (Graph n O O, BwdRewrite m n f))
@@ -322,15 +322,15 @@ newtype BwdRewrite m n f
 
 {-# INLINE wrapBR #-}
 wrapBR :: (forall e x .
-                Shape x 
+                Shape x
              -> (n  e x -> Fact x f  -> m  (Maybe (Graph n  e x, BwdRewrite m  n  f )))
              -> (n' e x -> Fact x f' -> m' (Maybe (Graph n' e x, BwdRewrite m' n' f')))
           )
             -- ^ This argument may assume that any function passed to it
             -- respects fuel, and it must return a result that respects fuel.
-       -> BwdRewrite m  n  f 
+       -> BwdRewrite m  n  f
        -> BwdRewrite m' n' f'      -- see Note [Respects Fuel]
-wrapBR wrap (BwdRewrite3 (f, m, l)) = 
+wrapBR wrap (BwdRewrite3 (f, m, l)) =
   BwdRewrite3 (wrap Open f, wrap Open m, wrap Closed l)
 
 {-# INLINE wrapBR2 #-}
@@ -364,7 +364,7 @@ mkBRewrite3 :: forall m n f. FuelMonad m
             -> BwdRewrite m n f
 mkBRewrite3 f m l = BwdRewrite3 (lift f, lift m, lift l)
   where lift :: forall t t1 a. (t -> t1 -> m (Maybe a)) -> t -> t1 -> m (Maybe (a, BwdRewrite m n f))
-        lift rw node fact = liftM (liftM asRew) (withFuel =<< rw node fact)
+        lift rw node fact = fmap (fmap asRew) (withFuel =<< rw node fact)
         asRew :: t -> (t, BwdRewrite m n f)
         asRew g = (g, noBwdRewrite)
 
@@ -373,7 +373,7 @@ noBwdRewrite = BwdRewrite3 (noRewrite, noRewrite, noRewrite)
 
 -- | Functions passed to 'mkBRewrite' should not be aware of the fuel supply.
 -- The result returned by 'mkBRewrite' respects fuel.
-mkBRewrite :: FuelMonad m 
+mkBRewrite :: FuelMonad m
            => (forall e x . n e x -> Fact x f -> m (Maybe (Graph n e x)))
            -> BwdRewrite m n f
 mkBRewrite f = mkBRewrite3 f f f
@@ -396,7 +396,7 @@ arbGraph pass@BwdPass { bp_lattice  = lattice,
     -}
     graph ::              Graph n e x -> Fact x f -> m (DG f n e x, Fact e f)
     block :: forall e x . Block n e x -> Fact x f -> m (DG f n e x, f)
-    node  :: forall e x . (ShapeLifter e x) 
+    node  :: forall e x . (ShapeLifter e x)
                        => n e x       -> Fact x f -> m (DG f n e x, f)
     body  :: [Label] -> Body n -> Fact C f -> m (DG f n C C, Fact C f)
     cat :: forall e a x info info' info''.
@@ -442,7 +442,7 @@ arbGraph pass@BwdPass { bp_lattice  = lattice,
 
     -- | Compose fact transformers and concatenate the resulting
     -- rewritten graphs.
-    {-# INLINE cat #-} 
+    {-# INLINE cat #-}
     cat ft1 ft2 f = [(g1 `dgSplice` g2, f1) | (g2,f2) <- ft2 f, (g1,f1) <- ft1 f2]
 
     arbx :: forall thing x .
@@ -528,7 +528,7 @@ updateFact lat newblocks lbl new_fact (cha, fbase)
        = case lookupFact lbl fbase of
            Nothing -> (SomeChange, new_fact_debug)  -- Note [Unreachable blocks]
            Just old_fact -> join old_fact
-         where join old_fact = 
+         where join old_fact =
                  fact_join lat lbl
                    (OldFact old_fact) (NewFact new_fact)
                (_, new_fact_debug) = join (fact_bot lat)
@@ -741,38 +741,37 @@ class ShapeLifter e x where
 
 instance ShapeLifter C O where
   singletonDG f n = gUnitCO (DBlock f (BlockCO n BNil))
-  fwdEntryFact     n f  = singleton (entryLabel n) f
-  bwdEntryFact lat n fb = getFact lat (entryLabel n) fb
-  ftransfer (FwdTransfer3 (ft, _, _)) n f = ft n f
-  btransfer (BwdTransfer3 (bt, _, _)) n f = bt n f
-  frewrite  (FwdRewrite3  (fr, _, _)) n f = fr n f
-  brewrite  (BwdRewrite3  (br, _, _)) n f = br n f
+  fwdEntryFact     = singleton . entryLabel
+  bwdEntryFact lat = getFact lat . entryLabel
+  ftransfer (FwdTransfer3 (ft, _, _)) = ft
+  btransfer (BwdTransfer3 (bt, _, _)) = bt
+  frewrite  (FwdRewrite3  (fr, _, _)) = fr
+  brewrite  (BwdRewrite3  (br, _, _)) = br
   fwdEntryLabel n = JustC [entryLabel n]
 
 instance ShapeLifter O O where
   singletonDG f = gUnitOO . DBlock f . BMiddle
-  fwdEntryFact   _ f = f
-  bwdEntryFact _ _ f = f
-  ftransfer (FwdTransfer3 (_, ft, _)) n f = ft n f
-  btransfer (BwdTransfer3 (_, bt, _)) n f = bt n f
-  frewrite  (FwdRewrite3  (_, fr, _)) n f = fr n f
-  brewrite  (BwdRewrite3  (_, br, _)) n f = br n f
+  fwdEntryFact   _ = id
+  bwdEntryFact _ _ = id
+  ftransfer (FwdTransfer3 (_, ft, _)) = ft
+  btransfer (BwdTransfer3 (_, bt, _)) = bt
+  frewrite  (FwdRewrite3  (_, fr, _)) = fr
+  brewrite  (BwdRewrite3  (_, br, _)) = br
   fwdEntryLabel _ = NothingC
 
 instance ShapeLifter O C where
   singletonDG f n = gUnitOC (DBlock f (BlockOC BNil n))
   fwdEntryFact   _ f = f
   bwdEntryFact _ _ f = f
-  ftransfer (FwdTransfer3 (_, _, ft)) n f = ft n f
-  btransfer (BwdTransfer3 (_, _, bt)) n f = bt n f
-  frewrite  (FwdRewrite3  (_, _, fr)) n f = fr n f
-  brewrite  (BwdRewrite3  (_, _, br)) n f = br n f
+  ftransfer (FwdTransfer3 (_, _, ft)) = ft
+  btransfer (BwdTransfer3 (_, _, bt)) = bt
+  frewrite  (FwdRewrite3  (_, _, fr)) = fr
+  brewrite  (BwdRewrite3  (_, _, br)) = br
   fwdEntryLabel _ = NothingC
 
 -- Fact lookup: the fact `orelse` bottom
 getFact  :: DataflowLattice f -> Label -> FactBase f -> f
-getFact lat l fb = case lookupFact l fb of Just  f -> f
-                                           Nothing -> fact_bot lat
+getFact lat l = fromMaybe (fact_bot lat) . lookupFact l
 
 
 

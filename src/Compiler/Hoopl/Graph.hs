@@ -53,7 +53,7 @@ import Control.Applicative as AP (Applicative(..))
 import Control.Categorical.Functor (NT (..))
 import qualified Control.Categorical.Functor as C
 import Control.Categorical.Monad (Kleisli (..))
-import Control.Monad.Trans.State (State, runState, state)
+import Control.Monad.Trans.State (State, evalState, state)
 import Data.Functor.Identity (Identity (..))
 import Data.Map.Class as Map
 import qualified Data.Set.Class as Set
@@ -310,10 +310,10 @@ class LabelsPtr l where
   targetLabels :: l -> [Label]
 
 instance NonLocal n => LabelsPtr (n e C) where
-  targetLabels n = successors n
+  targetLabels = successors
 
 instance LabelsPtr Label where
-  targetLabels l = [l]
+  targetLabels = pure
 
 instance LabelsPtr LabelSet where
   targetLabels = Set.toList
@@ -374,27 +374,20 @@ preorder_dfs  = graphDfs preorder_dfs_from_except
 
 postorder_dfs_from_except :: forall block e . (NonLocal block, LabelsPtr e)
                           => LabelMap (block C C) -> e -> LabelSet -> [block C C]
-postorder_dfs_from_except blocks b visited =
- vchildren (get_children b) (\acc _visited -> acc) [] visited
+postorder_dfs_from_except blocks b = vchildren (get_children b) pure []
  where
    vnode :: block C C -> ([block C C] -> LabelSet -> a) -> [block C C] -> LabelSet -> a
-   vnode block cont acc visited =
-        if Set.member id visited then
-            cont acc visited
-        else
-            let cont' acc visited = cont (block:acc) visited in
-            vchildren (get_children block) cont' acc (Set.insert id visited)
-      where id = entryLabel block
+   vnode block cont acc visited
+     | Set.member id' visited = cont acc visited
+     | otherwise =
+            let cont' = cont . (:) block in
+            vchildren (get_children block) cont' acc (Set.insert id' visited)
+      where id' = entryLabel block
    vchildren :: forall a. [block C C] -> ([block C C] -> LabelSet -> a) -> [block C C] -> LabelSet -> a
-   vchildren bs cont acc visited = next bs acc visited
-      where next children acc visited =
-                case children of []     -> cont acc visited
-                                 (b:bs) -> vnode b (next bs) acc visited
+   vchildren = flip $ foldr vnode
    get_children :: forall l. LabelsPtr l => l -> [block C C]
-   get_children block = foldr add_id [] $ targetLabels block
-   add_id id rst = case lookupFact id blocks of
-                      Just b -> b : rst
-                      Nothing -> rst
+   get_children = foldr add_id [] . targetLabels
+   add_id id' = maybe id (:) $ lookupFact id' blocks
 
 postorder_dfs_from
     :: (NonLocal block, LabelsPtr b) => LabelMap (block C C) -> b -> [block C C]
@@ -412,20 +405,16 @@ mark   l = state $ \v -> ((), Set.insert l v)
 preorder_dfs_from_except :: forall block e . (NonLocal block, LabelsPtr e)
                          => LabelMap (block C C) -> e -> LabelSet -> [block C C]
 preorder_dfs_from_except blocks b visited =
-    (fst $ runState (children (get_children b)) visited) []
+    evalState (children (get_children b)) visited []
   where children = foldr (liftA2 (.) . visit) (pure id)
         visit :: block C C -> State LabelSet (HL (block C C))
         visit b = do already <- marked (entryLabel b)
                      if already then return id
                       else do mark (entryLabel b)
-                              bs <- children $ get_children b
-                              return $ b `Compiler.Hoopl.Graph.cons` bs
+                              Compiler.Hoopl.Graph.cons b <$> children (get_children b)
         get_children :: forall l. LabelsPtr l => l -> [block C C]
-        get_children block = foldr add_id [] $ targetLabels block
-
-        add_id id rst = case lookupFact id blocks of
-                          Just b -> b : rst
-                          Nothing -> rst
+        get_children = foldr add_id [] . targetLabels
+        add_id id' = maybe id (:) $ lookupFact id' blocks
 
 type HL a = [a] -> [a] -- Hughes list (constant-time concatenation)
 cons :: a -> HL a -> HL a
