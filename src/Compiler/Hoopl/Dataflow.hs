@@ -34,7 +34,8 @@ module Compiler.Hoopl.Dataflow
   )
 where
 
-import Compiler.Hoopl.Block
+import Compiler.Hoopl.Block (Block (..), C, O, MaybeC (..), MaybeO (..), Shape (..))
+import qualified Compiler.Hoopl.Block as Block
 import Compiler.Hoopl.Fuel
 import Compiler.Hoopl.Graph hiding (Graph) -- hiding so we can redefine
                                            -- and include definition in paper
@@ -715,7 +716,7 @@ dgnilC = GMany NothingO emptyBody NothingO
 
 dgSplice = splice fzCat
   where fzCat :: DBlock f n e O -> DBlock t n O x -> DBlock f n e x
-        fzCat (DBlock f b1) (DBlock _ b2) = DBlock f (b1 `blockAppend` b2)
+        fzCat (DBlock f b1) (DBlock _ b2) = DBlock f (b1 `Block.append` b2)
 
 ----------------------------------------------------------------
 --       Utilities

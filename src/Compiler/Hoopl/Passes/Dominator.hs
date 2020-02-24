@@ -16,7 +16,7 @@ import Data.Map.Class
 import Data.Maybe
 import qualified Data.Set as Set
 
-import Compiler.Hoopl
+import Compiler.Hoopl hiding (map, empty)
 
 
 type Doms = WithBot DPath

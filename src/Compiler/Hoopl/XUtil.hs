@@ -28,7 +28,7 @@ import Data.Map.Class
 import Data.Maybe
 
 import Compiler.Hoopl.Dataflow
-import Compiler.Hoopl.Block
+import Compiler.Hoopl.Block hiding (fromList)
 import Compiler.Hoopl.Graph
 import Compiler.Hoopl.Label
 

@@ -39,9 +39,8 @@ getEntry [] = error "Parsed procedures should not be empty"
 getEntry (b : _) = labelFor $ A.first b
 
 toBody :: [A.Block] -> LabelMapM (Graph I.Insn C C)
-toBody bs =
-  do g <- foldl (liftM2 (|*><*|)) (return emptyClosedGraph) (map toBlock bs)
-     getBody g
+toBody =
+  getBody <=< foldl (liftM2 (|*><*|)) (return emptyClosedGraph) . fmap toBlock
 
 toBlock :: A.Block -> LabelMapM (Graph I.Insn C C)
 toBlock (A.Block { A.first = f, A.mids = ms, A.last = l }) =

@@ -96,13 +96,11 @@ mapEN f   (Cond e tid fid)    =
   case f e of Just e' -> Just $ Cond e' tid fid
               Nothing -> Nothing
 mapEN f   (Call rs n es succ) =
-  if all isNothing es' then Nothing
-  else Just $ Call rs n (map (uncurry fromMaybe) (zip es es')) succ
-    where es' = map f es
+  if all (isNothing . f) es then Nothing
+  else Just $ Call rs n (fromMaybe <*> f <$> es) succ
 mapEN f   (Return es) =
-   if all isNothing es' then Nothing
-   else Just $ Return (map (uncurry fromMaybe) (zip es es'))
-     where es' = map f es
+   if all (isNothing . f) es then Nothing
+   else Just $ Return (fromMaybe <*> f <$> es)
 
 fold_EE :: (a -> Expr -> a) -> a -> Expr      -> a
 fold_EN :: (a -> Expr -> a) -> a -> Insn e x -> a

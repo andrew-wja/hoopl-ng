@@ -6,7 +6,7 @@ import Control.Monad
 import qualified Data.Map as Map
 import Data.Map.Class
 
-import Compiler.Hoopl
+import Compiler.Hoopl hiding (empty, fromList)
 import IR
 import OptSupport
 

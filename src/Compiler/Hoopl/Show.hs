@@ -11,7 +11,7 @@ where
 import Data.Foldable (toList)
 import Data.Map.Class
 
-import Compiler.Hoopl.Block
+import Compiler.Hoopl.Block (Block (..), MaybeO (..))
 import Compiler.Hoopl.Graph
 import Compiler.Hoopl.Label
 

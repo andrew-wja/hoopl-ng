@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, GADTs, EmptyDataDecls, PatternGuards, TypeFamilies, NamedFieldPuns #-}
 module Test (parseTest, evalTest, optTest) where
 
-import Compiler.Hoopl
+import Compiler.Hoopl hiding (empty)
 import Control.Monad.Except
 import Data.Map.Class
 import System.Exit

@@ -56,7 +56,7 @@ runProg procs vs (EvalM f) =
   where
     init_state = State { frames = [], heap = M.empty, events = [],
                          vsupply = vs, procs = procMap }
-    procMap = M.fromList $ zip (map name procs) procs
+    procMap = M.fromList $ ((,) =<< name) <$> procs
 
 get_state :: EvalM v (State v)
 get_state = EvalM f

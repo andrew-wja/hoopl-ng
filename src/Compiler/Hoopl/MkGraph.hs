@@ -15,7 +15,7 @@ module Compiler.Hoopl.MkGraph
 where
 
 import Compiler.Hoopl.Label (Label, uniqueToLbl)
-import Compiler.Hoopl.Block
+import Compiler.Hoopl.Block (Block (..), C, O, MaybeO (..))
 import Compiler.Hoopl.Graph as U
 import Compiler.Hoopl.Unique
 

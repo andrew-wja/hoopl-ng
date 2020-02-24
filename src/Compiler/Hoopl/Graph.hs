@@ -45,7 +45,8 @@ module Compiler.Hoopl.Graph
   )
 where
 
-import Compiler.Hoopl.Block
+import Compiler.Hoopl.Block (Block (..), C, O, IndexedCO, MaybeO (..), Shape (..), mapBlock, traverseBlock, traverseBlock3, foldBlockNodesF3)
+import qualified Compiler.Hoopl.Block as Block
 import Compiler.Hoopl.Label
 
 import Control.Applicative as AP (Applicative(..))
@@ -54,7 +55,7 @@ import qualified Control.Categorical.Functor as C
 import Control.Categorical.Monad (Kleisli (..))
 import Control.Monad.Trans.State (State, runState, state)
 import Data.Functor.Identity (Identity (..))
-import Data.Map.Class
+import Data.Map.Class as Map
 import qualified Data.Set.Class as Set
 
 -- -----------------------------------------------------------------------------
@@ -67,7 +68,7 @@ type Body n = LabelMap (Block n C C)
 type Body' block n = LabelMap (block n C C)
 
 emptyBody :: Body' block n
-emptyBody = empty
+emptyBody = Map.empty
 
 bodyUnion :: forall a . LabelMap a -> LabelMap a -> LabelMap a
 bodyUnion = unionWith nodups
@@ -224,7 +225,7 @@ splice bcat = sp
 #endif
 
 gSplice :: NonLocal n => Graph n e a -> Graph n a x -> Graph n e x
-gSplice = splice blockAppend
+gSplice = splice Block.append
 
 
 -- -----------------------------------------------------------------------------
@@ -418,7 +419,7 @@ preorder_dfs_from_except blocks b visited =
                      if already then return id
                       else do mark (entryLabel b)
                               bs <- children $ get_children b
-                              return $ b `cons` bs
+                              return $ b `Compiler.Hoopl.Graph.cons` bs
         get_children :: forall l. LabelsPtr l => l -> [block C C]
         get_children block = foldr add_id [] $ targetLabels block
 

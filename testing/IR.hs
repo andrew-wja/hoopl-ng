@@ -49,8 +49,8 @@ instance Show (Insn e x) where
   show (Cond e t f)       =
     ind $ "if " ++ show e ++ " then goto " ++ show t ++ " else goto " ++ show f
   show (Call ress f cargs succ) =
-    ind $ tuple ress ++ " = " ++ f ++ tuple (map show cargs) ++ " goto " ++ show succ
-  show (Return      rargs) = ind $ "ret " ++ tuple (map show rargs)
+    ind $ tuple ress ++ " = " ++ f ++ tuple (show <$> cargs) ++ " goto " ++ show succ
+  show (Return      rargs) = ind $ "ret " ++ tuple (show <$> rargs)
 
 ind :: String -> String
 ind x = "  " ++ x

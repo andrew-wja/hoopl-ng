@@ -10,29 +10,29 @@ module Compiler.Hoopl.Block (
   , MaybeO(..), MaybeC(..)
   , IndexedCO
   , Shape(..)
-  , shape
+  , shape'
 
     -- * Blocks
   , Block(..)
 
     -- ** Predicates on Blocks
-  , isEmptyBlock
-  , blockShape
+  , isEmpty
+  , shape
 
     -- ** Constructing blocks
-  , emptyBlock, blockCons, blockSnoc
-  , blockJoinHead, blockJoinTail, blockJoin, blockJoinAny
-  , blockAppend
+  , empty, cons, snoc
+  , joinHead, joinTail, join, joinAny
+  , append
 
     -- ** Deconstructing blocks
   , firstNode, lastNode, endNodes
-  , blockSplitHead, blockSplitTail, blockSplit, blockSplitAny
+  , splitHead, splitTail, split, splitAny
 
     -- ** Modifying blocks
   , replaceFirstNode, replaceLastNode
 
     -- ** Converting to and from lists
-  , blockToList, blockFromList
+  , toList, fromList
 
     -- ** Maps and folds
   , mapBlock, mapBlock3, mapBlock', mapBlock3'
@@ -41,7 +41,7 @@ module Compiler.Hoopl.Block (
   , traverseBlock, traverseBlock3
 
     -- ** Biasing
-  , frontBiasBlock, backBiasBlock
+  , frontBias, backBias
 
   ) where
 
@@ -95,8 +95,8 @@ data Shape ex where
   Closed :: Shape C
   Open   :: Shape O
 
-shape :: a -> b -> Shape x -> IndexedCO x a b
-shape = \ a b -> \ case
+shape' :: a -> b -> Shape x -> IndexedCO x a b
+shape' = \ a b -> \ case
     Closed -> a
     Open -> b
 
@@ -131,13 +131,13 @@ instance C.Functor (NT (NT (->))) (NT (NT (->))) Block where
 
 -- Predicates
 
-isEmptyBlock :: Block n e x -> Bool
-isEmptyBlock BNil       = True
-isEmptyBlock (BCat l r) = isEmptyBlock l && isEmptyBlock r
-isEmptyBlock _          = False
+isEmpty :: Block n e x -> Bool
+isEmpty BNil       = True
+isEmpty (BCat l r) = isEmpty l && isEmpty r
+isEmpty _          = False
 
-blockShape :: Block n e x -> (Shape e, Shape x)
-blockShape = \ case
+shape :: Block n e x -> (Shape e, Shape x)
+shape = \ case
     BlockCO _ _ -> (Closed, Open)
     BlockCC _ _ _ -> (Closed, Closed)
     BlockOC _ _ -> (Open, Closed)
@@ -150,40 +150,40 @@ blockShape = \ case
 
 -- Building
 
-emptyBlock :: Block n O O
-emptyBlock = BNil
+empty :: Block n O O
+empty = BNil
 
-blockCons :: n O O -> Block n O x -> Block n O x
-blockCons n b = case b of
-  BlockOC b l  -> (BlockOC $! (n `blockCons` b)) l
+cons :: n O O -> Block n O x -> Block n O x
+cons n b = case b of
+  BlockOC b l  -> (BlockOC $! (n `cons` b)) l
   BNil{}    -> BMiddle n
   BMiddle{} -> n `BCons` b
   BCat{}    -> n `BCons` b
   BSnoc{}   -> n `BCons` b
   BCons{}   -> n `BCons` b
 
-blockSnoc :: Block n e O -> n O O -> Block n e O
-blockSnoc b n = case b of
-  BlockCO f b -> BlockCO f $! (b `blockSnoc` n)
+snoc :: Block n e O -> n O O -> Block n e O
+snoc b n = case b of
+  BlockCO f b -> BlockCO f $! (b `snoc` n)
   BNil{}      -> BMiddle n
   BMiddle{}   -> b `BSnoc` n
   BCat{}      -> b `BSnoc` n
   BSnoc{}     -> b `BSnoc` n
   BCons{}     -> b `BSnoc` n
 
-blockJoinHead :: n C O -> Block n O x -> Block n C x
-blockJoinHead f (BlockOC b l) = BlockCC f b l
-blockJoinHead f b = BlockCO f BNil `cat` b
+joinHead :: n C O -> Block n O x -> Block n C x
+joinHead f (BlockOC b l) = BlockCC f b l
+joinHead f b = BlockCO f BNil `cat` b
 
-blockJoinTail :: Block n e O -> n O C -> Block n e C
-blockJoinTail (BlockCO f b) t = BlockCC f b t
-blockJoinTail b t = b `cat` BlockOC BNil t
+joinTail :: Block n e O -> n O C -> Block n e C
+joinTail (BlockCO f b) t = BlockCC f b t
+joinTail b t = b `cat` BlockOC BNil t
 
-blockJoin :: n C O -> Block n O O -> n O C -> Block n C C
-blockJoin f b t = BlockCC f b t
+join :: n C O -> Block n O O -> n O C -> Block n C C
+join f b t = BlockCC f b t
 
-blockAppend :: Block n e O -> Block n O x -> Block n e x
-blockAppend = cat
+append :: Block n e O -> Block n O x -> Block n e x
+append = cat
 
 
 -- Taking apart
@@ -199,22 +199,22 @@ lastNode (BlockCC _ _ n) = n
 endNodes :: Block n C C -> (n C O, n O C)
 endNodes (BlockCC f _ l) = (f,l)
 
-blockSplitHead :: Block n C x -> (n C O, Block n O x)
-blockSplitHead (BlockCO n b)   = (n, b)
-blockSplitHead (BlockCC n b t) = (n, BlockOC b t)
+splitHead :: Block n C x -> (n C O, Block n O x)
+splitHead (BlockCO n b)   = (n, b)
+splitHead (BlockCC n b t) = (n, BlockOC b t)
 
-blockSplitTail :: Block n e C -> (Block n e O, n O C)
-blockSplitTail (BlockOC b n)   = (b, n)
-blockSplitTail (BlockCC f b t) = (BlockCO f b, t)
+splitTail :: Block n e C -> (Block n e O, n O C)
+splitTail (BlockOC b n)   = (b, n)
+splitTail (BlockCC f b t) = (BlockCO f b, t)
 
 -- | Split a closed block into its entry node, open middle block, and
 -- exit node.
-blockSplit :: Block n C C -> (n C O, Block n O O, n O C)
-blockSplit (BlockCC f b t) = (f, b, t)
+split :: Block n C C -> (n C O, Block n O O, n O C)
+split (BlockCC f b t) = (f, b, t)
 
-blockSplitAny :: Block n e x
+splitAny :: Block n e x
               -> (MaybeC e (n C O), Block n O O, MaybeC x (n O C))
-blockSplitAny block = case block of
+splitAny block = case block of
   BlockCO f b   -> (JustC f,  b, NothingC)
   BlockCC f b l -> (JustC f,  b, JustC l)
   BlockOC   b l -> (NothingC, b, JustC l)
@@ -224,8 +224,8 @@ blockSplitAny block = case block of
   b@BCons{}     -> (NothingC, b, NothingC)
   b@BSnoc{}     -> (NothingC, b, NothingC)
 
-blockToList :: Block n O O -> [n O O]
-blockToList b = go b []
+toList :: Block n O O -> [n O O]
+toList b = go b []
    where go :: Block n O O -> [n O O] -> [n O O]
          go BNil         r = r
          go (BMiddle n)  r = n : r
@@ -233,18 +233,18 @@ blockToList b = go b []
          go (BSnoc b1 n) r = go b1 (n:r)
          go (BCons n b1) r = n : go b1 r
 
-blockFromList :: [n O O] -> Block n O O
-blockFromList = foldr BCons BNil
+fromList :: [n O O] -> Block n O O
+fromList = foldr BCons BNil
 
 
 -- | Convert a list of nodes to a block. The entry and exit node must
 -- or must not be present depending on the shape of the block.
 --
-blockJoinAny :: (MaybeC e (n C O), Block n O O, MaybeC x (n O C)) -> Block n e x
-blockJoinAny (NothingC, m, NothingC)  = m
-blockJoinAny (NothingC, m, JustC l)   = BlockOC   m l
-blockJoinAny (JustC f, m, NothingC)   = BlockCO f m
-blockJoinAny (JustC f, m, JustC l)    = BlockCC f m l
+joinAny :: (MaybeC e (n C O), Block n O O, MaybeC x (n O C)) -> Block n e x
+joinAny (NothingC, m, NothingC)  = m
+joinAny (NothingC, m, JustC l)   = BlockOC   m l
+joinAny (JustC f, m, NothingC)   = BlockCO f m
+joinAny (JustC f, m, JustC l)    = BlockCC f m l
 
 
 -- Modifying
@@ -421,8 +421,8 @@ foldBlockNodesB f = foldBlockNodesB3 (f, f, f)
 -- without general recusion; tail recursion suffices.  Not all shapes
 -- can be front-biased; a closed/open block is inherently back-biased.
 
-frontBiasBlock :: Block n e x -> Block n e x
-frontBiasBlock blk = case blk of
+frontBias :: Block n e x -> Block n e x
+frontBias blk = case blk of
    BlockCO f b   -> BlockCO f (fb b BNil)
    BlockOC   b n -> BlockOC   (fb b BNil) n
    BlockCC f b n -> BlockCC f (fb b BNil) n
@@ -446,8 +446,8 @@ frontBiasBlock blk = case blk of
 -- without general recusion; tail recursion suffices.  Not all shapes
 -- can be back-biased; an open/closed block is inherently front-biased.
 
-backBiasBlock :: Block n e x -> Block n e x
-backBiasBlock blk = case blk of
+backBias :: Block n e x -> Block n e x
+backBias blk = case blk of
    BlockCO f b   -> BlockCO f (bb BNil b)
    BlockOC   b n -> BlockOC   (bb BNil b) n
    BlockCC f b n -> BlockCC f (bb BNil b) n
