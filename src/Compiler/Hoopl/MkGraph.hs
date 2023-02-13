@@ -23,14 +23,14 @@ import Control.Monad (Monad(..),liftM2)
 import Prelude (($),(.),foldr,map) -- for the purpose of 'hiding ((<*>))'
 
 {-|
-As noted in the paper, we can define a single, polymorphic type of 
+As noted in the paper, we can define a single, polymorphic type of
 splicing operation with the very polymorphic type
 @
   AGraph n e a -> AGraph n a x -> AGraph n e x
 @
 However, we feel that this operation is a bit /too/ polymorphic,
-and that it's too easy for clients to use it blindly without 
-thinking.  We therfore split it into two operations, '<*>' and '|*><*|', 
+and that it's too easy for clients to use it blindly without
+thinking.  We therfore split it into two operations, '<*>' and '|*><*|',
 which are supplemented by other functions:
 
   * The '<*>' operator is true concatenation, for connecting open graphs.
@@ -60,10 +60,10 @@ which are supplemented by other functions:
 
 
 class GraphRep g where
-  -- | An empty graph that is open at entry and exit.  
+  -- | An empty graph that is open at entry and exit.
   -- It is the left and right identity of '<*>'.
   emptyGraph       :: g n O O
-  -- | An empty graph that is closed at entry and exit.  
+  -- | An empty graph that is closed at entry and exit.
   -- It is the left and right identity of '|*><*|'.
   emptyClosedGraph :: g n C C
   -- | Create a graph from a first node
@@ -75,7 +75,7 @@ class GraphRep g where
   mkFirst n = mkExit (BlockCO n BNil)
   mkLast  n = mkEntry (BlockOC BNil n)
   infixl 3 <*>
-  infixl 2 |*><*| 
+  infixl 2 |*><*|
   -- | Concatenate two graphs; control flows from left to right.
   (<*>)    :: NonLocal n => g n e O -> g n O x -> g n e x
   -- | Splice together two graphs at a closed point; nothing is known
@@ -141,7 +141,7 @@ aGraphOfGraph g = A (return g)
 -- lambda-bind a single 'Label', or if multiple labels are needed,
 -- it can bind a tuple.  Tuples can be nested, so arbitrarily many
 -- fresh labels can be acquired in a single call.
--- 
+--
 -- For example usage see implementations of 'mkIfThenElse' and 'mkWhileDo'.
 class Uniques u where
   withFresh :: (u -> AGraph n e x) -> AGraph n e x
@@ -189,12 +189,12 @@ class NonLocal n => HooplNode n where
 class IfThenElseable x where
   -- | Translate a high-level if-then-else construct into an 'AGraph'.
   -- The condition takes as arguments labels on the true-false branch
-  -- and returns a single-entry, two-exit graph which exits to 
+  -- and returns a single-entry, two-exit graph which exits to
   -- the two labels.
   mkIfThenElse :: HooplNode n
                => (Label -> Label -> AGraph n O C) -- ^ branch condition
                -> AGraph n O x   -- ^ code in the "then" branch
-               -> AGraph n O x   -- ^ code in the "else" branch 
+               -> AGraph n O x   -- ^ code in the "else" branch
                -> AGraph n O x   -- ^ resulting if-then-else construct
 
 mkWhileDo    :: HooplNode n

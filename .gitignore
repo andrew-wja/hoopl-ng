@@ -1,6 +1,7 @@
 .*.swp
 *.bak
 *~
+*.lock
 
 # GHC build system produces these
 GNUmakefile
@@ -37,3 +38,6 @@ cabal.project.local
 
 # stack artifacts
 .stack-work
+
+# Visual Studio Code editor artifacts
+.vscode

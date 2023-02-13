@@ -1,5 +1,5 @@
-Name:                hoopl
-Version:             3.10.2.3
+Name:                hoopl-ng
+Version:             0.1.0.0
 -- NOTE: Don't forget to update ./changelog.md
 Description:
   Higher-order optimization library
@@ -14,7 +14,7 @@ Maintainer:          Ning Wang <email@ningwang.org>, Michal Terepeta <michal.ter
 Homepage:            https://github.com/haskell/hoopl
 Bug-Reports:         https://github.com/haskell/hoopl/issues/
 Build-Type:          Simple
-Cabal-Version:       >=1.10
+Cabal-Version:       2.0
 Synopsis:            A library to support dataflow analysis and optimization
 Category:            Compilers/Interpreters
 Extra-Source-Files:  README.md, changelog.md,
@@ -40,10 +40,6 @@ tested-with:         GHC == 7.0.4,
                      GHC == 8.4.3,
                      GHC == 8.6.1
 
-Source-repository head
-  Type:       git
-  Location:   http://git.haskell.org/packages/hoopl.git
-
 Library
   Default-Language:  Haskell2010
   Other-Extensions:  CPP
@@ -60,7 +56,7 @@ Library
     Other-Extensions: Safe Trustworthy
 
   Hs-Source-Dirs:    src
-  Build-Depends:     base >= 4.3 && < 4.13,
+  Build-Depends:     base >= 4.3 && < 5,
                      containers >= 0.5 && < 0.7
   Exposed-Modules:   Compiler.Hoopl,
                      Compiler.Hoopl.Internals,
@@ -106,7 +102,7 @@ Test-Suite hoopl-test
                      Simplify
                      Test
   Hs-Source-Dirs:    testing
-  Build-Depends:     base >= 4.3 && < 4.13,
+  Build-Depends:     base >= 4.3 && < 5,
                      containers >= 0.5 && < 0.7,
                      filepath,
                      hoopl,
